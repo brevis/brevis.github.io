@@ -84,6 +84,9 @@ button { font-family: inherit; }
   animation: pop-in .6s cubic-bezier(.2,1.3,.4,1) .15s both;
 }
 .board--preview .cell { border-radius: 16px; }
+.board--preview .piece { transition: opacity .45s ease, transform .45s ease; }
+.board--preview.is-fading .piece { opacity: 0; transform: scale(.6); }
+.board--preview .cell.is-last::after { inset: 5px; border-radius: 11px; }
 .splash-bottom { display: flex; flex-direction: column; align-items: center; gap: 14px; margin-bottom: 4vh; width: 100%; max-width: 360px; }
 
 .btn {

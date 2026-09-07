@@ -564,6 +564,80 @@
   // ---------------------------------------------------------------------------
   // Screens, buttons
   // ---------------------------------------------------------------------------
+  // ---------------------------------------------------------------------------
+  // Splash demo: replays random winning games on the decorative board
+  // ---------------------------------------------------------------------------
+  const demo = { timer: null, running: false, rng: E.mulberry32((Math.random() * 4294967296) >>> 0) };
+  const demoBoard = $('.board--preview');
+  const demoCells = demoBoard ? Array.prototype.slice.call(demoBoard.children) : [];
+
+  /** Generate a random winnable deal and play it out: P takes winning moves, the AI resists. */
+  function demoGame() {
+    const d = E.generateDeal({ pool: POOL, rng: demo.rng, maxTries: 40 });
+    if (!d) return null;
+    const g = new E.Game(d.pHand, d.aHand);
+    for (let guard = 0; !g.result && guard < 9; guard++) {
+      if (g.sideToMove() === 'P') {
+        const ms = g.bestPlayerMoves();
+        const m = ms[Math.floor(demo.rng() * ms.length)];
+        g.play('P', m.type, m.cell);
+      } else {
+        const m = g.aiMove(demo.rng);
+        g.play('A', m.type, m.cell);
+      }
+    }
+    return g.result && g.result.winner === 'P' ? g : null;
+  }
+
+  function demoClear() {
+    demoBoard.classList.remove('is-fading');
+    demoCells.forEach((c) => { c.innerHTML = ''; c.classList.remove('is-win', 'is-last'); });
+  }
+  function demoStop() {
+    demo.running = false;
+    clearTimeout(demo.timer); demo.timer = null;
+  }
+  function demoStart() {
+    if (!demoBoard || demo.running) return;
+    demo.running = true;
+    demo.timer = setTimeout(demoStep, 350);
+  }
+  function demoStep() {
+    if (!demo.running) return;
+    const g = demoGame();
+    demoClear();
+    if (!g) return;
+    const fast = reduceMotion();
+    const moves = g.moves;
+    let i = 0;
+    const place = () => {
+      if (!demo.running) return;
+      if (i < moves.length) {
+        const m = moves[i++];
+        demoCells.forEach((c) => c.classList.remove('is-last'));
+        const el = pieceEl(m.type);
+        if (!fast) el.classList.add('is-placed');
+        demoCells[m.cell].appendChild(el);
+        demoCells[m.cell].classList.add('is-last');
+        demo.timer = setTimeout(place, fast ? 0 : 430);
+        return;
+      }
+      const winCells = new Set();
+      g.result.lines.forEach((l) => l.forEach((c) => winCells.add(c)));
+      winCells.forEach((c) => demoCells[c].classList.add('is-win'));
+      if (fast) return; // reduced motion: show one finished game, no cycling
+      demo.timer = setTimeout(demoFade, 4200);
+    };
+    demo.timer = setTimeout(place, fast ? 0 : 300);
+  }
+  function demoFade() {
+    if (!demo.running) return;
+    demoCells.forEach((c) => c.classList.remove('is-win', 'is-last'));
+    demoBoard.querySelectorAll('.piece').forEach((p) => p.classList.remove('is-placed'));
+    demoBoard.classList.add('is-fading');
+    demo.timer = setTimeout(demoStep, 480);
+  }
+
   function showSplash() {
     clearTimeout(aiTimer); clearTimeout(overlayTimer);
     if (aiAnim) { aiAnim.onfinish = null; aiAnim.cancel(); aiAnim = null; }
@@ -571,8 +645,10 @@
     ui.dragLayer.innerHTML = '';
     closeDialogs();
     ui.game.hidden = true; ui.splash.hidden = false;
+    demoStart();
   }
   function showGame() {
+    demoStop();
     ui.splash.hidden = true; ui.game.hidden = false;
   }
   function renderRules() {
@@ -637,9 +713,14 @@
     selectSlot, playerMove, startGame, showGame, showSplash,
     get game() { return game; }, get deal() { return deal; }, get selected() { return selected; }, get busy() { return busy; },
     setDifficulty(d) { if (DIFF[d]) { difficulty = d; store.set('difficulty', d); } },
+    get demoRunning() { return demo.running; },
   };
 
   initBokeh();
   if (params.get('autostart') === '1') { showGame(); startGame(); }
-  else prefetchDeal();
+  else { prefetchDeal(); demoStart(); }
+  document.addEventListener('visibilitychange', () => {
+    if (ui.splash.hidden) return;
+    if (document.hidden) demoStop(); else demoStart();
+  });
 })();
