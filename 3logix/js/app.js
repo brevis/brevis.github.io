@@ -14,7 +14,7 @@
   const STRINGS = {
     en: {
       play: 'Play', howToPlay: 'How to play', easy: 'Easy', normal: 'Normal', hard: 'Hard',
-      ai: 'AI', you: 'You', turn: 'your turn', aiTurn: 'thinking',
+      ai: 'AI', you: 'You', aiTurn: 'thinking',
       home: 'Home', rules: 'Rules', newGame: 'New game', board: 'Board', difficultyLabel: 'Difficulty',
       turnPick: 'Your move — pick a piece', turnPlace: 'Now tap an empty cell', aiThinking: 'AI is thinking…',
       dealing: 'Dealing…',
@@ -39,7 +39,7 @@
     },
     ru: {
       play: 'Играть', howToPlay: 'Как играть', easy: 'Легко', normal: 'Нормально', hard: 'Сложно',
-      ai: 'ИИ', you: 'Вы', turn: 'ваш ход', aiTurn: 'думает',
+      ai: 'ИИ', you: 'Вы', aiTurn: 'думает',
       home: 'На главную', rules: 'Правила', newGame: 'Новая игра', board: 'Поле', difficultyLabel: 'Сложность',
       turnPick: 'Ваш ход — выберите фишку', turnPlace: 'Теперь нажмите на пустую клетку', aiThinking: 'ИИ думает…',
       dealing: 'Раздача…',
@@ -151,7 +151,7 @@
   const ui = {
     splash: $('#splash'), game: $('#game'), board: $('#board'), handAi: $('#hand-ai'), handPlayer: $('#hand-player'),
     status: $('#status'), overlay: $('#overlay'), rules: $('#rules'), dragLayer: $('#drag-layer'),
-    aiBadge: $('#ai-badge'), playerBadge: $('#player-badge'),
+    aiBadge: $('#ai-badge'),
   };
   let game = null;        // Engine.Game
   let deal = null;        // { pHand, aHand, ... }
@@ -292,7 +292,6 @@
     const side = game.sideToMove();
     const playerTurn = side === 'P';
     ui.handPlayer.classList.toggle('is-locked', !playerTurn);
-    ui.playerBadge.textContent = t('turn'); ui.playerBadge.classList.toggle('is-on', playerTurn); ui.playerBadge.setAttribute('aria-hidden', String(!playerTurn));
     ui.aiBadge.textContent = t('aiTurn'); ui.aiBadge.classList.toggle('is-on', !playerTurn); ui.aiBadge.setAttribute('aria-hidden', String(playerTurn));
     playerSlots.forEach((s) => s.el.classList.toggle('is-selectable', playerTurn && !s.used));
     if (playerTurn) {
@@ -402,7 +401,7 @@
     busy = true;
     highlightTargets(false);
     ui.handPlayer.classList.add('is-locked');
-    ui.playerBadge.classList.remove('is-on'); ui.aiBadge.classList.remove('is-on');
+    ui.aiBadge.classList.remove('is-on');
     selected = null;
     syncSelected();
     playerSlots.forEach((s) => s.el.classList.remove('is-selectable'));
