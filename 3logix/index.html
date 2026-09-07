@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#4a6dbe">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>3LOGIX</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%234b6ec0'/%3E%3Ccircle cx='20' cy='20' r='9' fill='%23ffd35c'/%3E%3Cpath d='M44 11l9 9-9 9-9-9z' fill='%23e02b3a'/%3E%3Crect x='11' y='35' width='18' height='18' rx='4' fill='%23e02b3a'/%3E%3Ccircle cx='44' cy='44' r='9' fill='%237b5cf0'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="css/style.css">
+  <!-- Web fonts load without blocking first paint; the CSS has full fallback stacks. -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;600;700&family=Russo+One&display=swap" media="print" onload="this.media='all'">
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;600;700&family=Russo+One&display=swap"></noscript>
+</head>
+<body>
+  <!-- Shared SVG defs: piece gradients -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <linearGradient id="g-blue" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#9d8bff"/><stop offset="1" stop-color="#5a3ad0"/>
+      </linearGradient>
+      <linearGradient id="g-red" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#ff8a80"/><stop offset="1" stop-color="#e02b3a"/>
+      </linearGradient>
+      <linearGradient id="g-yellow" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#ffe97a"/><stop offset="1" stop-color="#f4a71d"/>
+      </linearGradient>
+      <linearGradient id="g-logo3" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#ffd35c"/><stop offset="0.55" stop-color="#f4a24b"/><stop offset="1" stop-color="#ea7f74"/>
+      </linearGradient>
+      <linearGradient id="g-gloss" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#fff" stop-opacity="0.55"/><stop offset="1" stop-color="#fff" stop-opacity="0"/>
+      </linearGradient>
+    </defs>
+  </svg>
+
+  <div id="bokeh" class="bokeh" aria-hidden="true"></div>
+
+  <!-- Splash -->
+  <section id="splash" class="screen splash">
+    <div class="logo logo--big" aria-label="3LOGIX">
+      <svg viewBox="0 0 360 120" class="logo-svg">
+        <g class="logo-shadow" transform="translate(4,6)">
+          <text x="180" y="98" text-anchor="middle"><tspan class="logo-three">3</tspan><tspan class="logo-word" dx="4" dy="-4">LOGIX</tspan></text>
+        </g>
+        <text x="180" y="98" text-anchor="middle"><tspan class="logo-three" fill="url(#g-logo3)">3</tspan><tspan class="logo-word" dx="4" dy="-4" fill="#ffffff">LOGIX</tspan></text>
+      </svg>
+    </div>
+    <div class="splash-bottom">
+      <div class="seg" id="difficulty" role="radiogroup" aria-label="Difficulty" data-i18n-aria="difficultyLabel">
+        <button type="button" class="seg-btn" role="radio" aria-checked="false" data-diff="easy" data-i18n="easy">Easy</button>
+        <button type="button" class="seg-btn is-active" role="radio" aria-checked="true" data-diff="normal" data-i18n="normal">Normal</button>
+        <button type="button" class="seg-btn" role="radio" aria-checked="false" data-diff="hard" data-i18n="hard">Hard</button>
+      </div>
+      <button type="button" id="btn-play" class="btn btn-primary btn-big" data-i18n="play">Play</button>
+      <button type="button" id="btn-rules-splash" class="btn btn-ghost" data-i18n="howToPlay">How to play</button>
+    </div>
+  </section>
+
+  <!-- Game -->
+  <section id="game" class="screen game" hidden>
+    <header class="topbar">
+      <button type="button" id="btn-home" class="icon-btn" aria-label="Home" title="Home" data-i18n-aria="home">
+        <svg viewBox="0 0 24 24"><path d="M4 11.5 12 5l8 6.5V20a1 1 0 0 1-1 1h-5v-6h-4v6H5a1 1 0 0 1-1-1z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+      </button>
+      <div class="topbar-center">
+      <div class="logo logo--small" aria-hidden="true">
+        <svg viewBox="0 0 360 120" class="logo-svg">
+          <g class="logo-shadow" transform="translate(3,4)">
+            <text x="180" y="98" text-anchor="middle"><tspan class="logo-three">3</tspan><tspan class="logo-word" dx="4" dy="-4">LOGIX</tspan></text>
+          </g>
+          <text x="180" y="98" text-anchor="middle"><tspan class="logo-three" fill="url(#g-logo3)">3</tspan><tspan class="logo-word" dx="4" dy="-4" fill="#ffffff">LOGIX</tspan></text>
+        </svg>
+      </div>
+      <div class="topbar-caption" id="diff-caption"></div>
+      </div>
+      <div class="topbar-right">
+        <button type="button" id="btn-rules" class="icon-btn" aria-label="Rules" title="Rules" data-i18n-aria="rules">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.6 2.2c-.7.4-1.1.9-1.1 1.8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="16.8" r="1.2" fill="currentColor"/></svg>
+        </button>
+        <button type="button" id="btn-new" class="icon-btn" aria-label="New game" title="New game" data-i18n-aria="newGame">
+          <svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.4-5.7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 4v5h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <div class="hand-area hand-area--ai">
+      <div class="hand-label"><span class="hand-name" data-i18n="ai">AI</span><span class="hand-badge" id="ai-badge"></span></div>
+      <div class="hand" id="hand-ai"></div>
+    </div>
+
+    <div class="board-wrap">
+      <div class="board" id="board" role="group" aria-label="Board" data-i18n-aria="board"></div>
+    </div>
+
+    <div class="status" id="status" aria-live="polite"></div>
+
+    <div class="hand-area hand-area--player">
+      <div class="hand" id="hand-player"></div>
+      <div class="hand-label"><span class="hand-name" data-i18n="you">You</span><span class="hand-badge" id="player-badge"></span></div>
+    </div>
+  </section>
+
+  <!-- Result overlay -->
+  <div id="overlay" class="overlay" hidden>
+    <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="result-title">
+      <div class="dialog-title" id="result-title"></div>
+      <div class="dialog-text" id="result-text"></div>
+      <div class="dialog-stats" id="result-stats"></div>
+      <div class="dialog-actions">
+        <button type="button" id="btn-retry" class="btn btn-ghost" data-i18n="retryDeal">Retry this deal</button>
+        <button type="button" id="btn-again" class="btn btn-primary" data-i18n="newDeal">New deal</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Rules overlay -->
+  <div id="rules" class="overlay" hidden>
+    <div class="dialog dialog--rules" role="dialog" aria-modal="true" aria-labelledby="rules-title">
+      <div class="dialog-title" id="rules-title" data-i18n="rulesTitle">How to play</div>
+      <div class="rules-body" id="rules-body"></div>
+      <div class="dialog-actions">
+        <button type="button" id="btn-rules-close" class="btn btn-primary" data-i18n="gotIt">Got it</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="drag-layer" class="drag-layer" aria-hidden="true"></div>
+
+  <script src="js/engine.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
