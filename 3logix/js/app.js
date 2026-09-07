@@ -1,4 +1,4 @@
-/* 3LOGIX — UI */
+/* TriX — UI */
 (function () {
   'use strict';
   const E = window.Engine;
@@ -77,8 +77,8 @@
   // Storage
   // ---------------------------------------------------------------------------
   const store = {
-    get(k, d) { try { const v = localStorage.getItem('3logix.' + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
-    set(k, v) { try { localStorage.setItem('3logix.' + k, JSON.stringify(v)); } catch (e) { /* ignore */ } },
+    get(k, d) { try { const v = localStorage.getItem('trix.' + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+    set(k, v) { try { localStorage.setItem('trix.' + k, JSON.stringify(v)); } catch (e) { /* ignore */ } },
   };
 
   // Difficulty bands: how many of the player's moves keep the forced win at the

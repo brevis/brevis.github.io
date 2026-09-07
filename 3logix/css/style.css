@@ -1,4 +1,4 @@
-/* 3LOGIX — styles */
+/* TriX — styles */
 :root {
   --bg-top: #4b6ec0;
   --bg-mid: #6b93d6;
@@ -64,8 +64,8 @@ button { font-family: inherit; }
 
 /* ---------- logo ---------- */
 .logo-svg { display: block; width: 100%; height: auto; overflow: visible; }
-.logo-three { font-family: var(--font-logo); font-size: 118px; }
-.logo-word  { font-family: var(--font-logo); font-size: 84px; letter-spacing: 1px; }
+.logo-text { font-family: var(--font-logo); font-size: 112px; letter-spacing: 2px; }
+.logo-text--lc { font-size: 88px; }
 .logo-shadow text { fill: #1f2b55; opacity: .85; }
 .logo-svg text, .logo-svg tspan { stroke: #1f2b55; stroke-width: 6px; stroke-linejoin: round; paint-order: stroke fill; }
 .logo-shadow text, .logo-shadow tspan { fill: #1f2b55; stroke: #1f2b55; stroke-width: 6px; }
@@ -207,6 +207,13 @@ button { font-family: inherit; }
   animation: pop-in .4s cubic-bezier(.2,1.4,.4,1) both;
 }
 @keyframes pop-in { from { transform: scale(.7); opacity: 0; } to { transform: none; opacity: 1; } }
+#overlay.overlay { background: rgba(20, 30, 70, .3); backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px); }
+/* Result dialog is slightly translucent so the finished board shows through. */
+.dialog--result {
+  background: linear-gradient(180deg, rgba(255, 255, 255, .8), rgba(238, 243, 255, .8));
+  border: 1px solid rgba(255, 255, 255, .75);
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+}
 .dialog-title { font-family: var(--font-logo); font-size: 40px; letter-spacing: 1px; line-height: 1; margin-bottom: 8px; }
 .dialog-title.win { color: #e08a1e; }
 .dialog-title.lose { color: #c9313d; }

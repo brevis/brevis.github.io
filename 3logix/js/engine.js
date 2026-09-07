@@ -1,5 +1,5 @@
 /*
- * 3LOGIX — game engine (pure logic, no DOM).
+ * TriX — game engine (pure logic, no DOM).
  * Works as a classic browser script (exposes window.Engine) and as a Node module (module.exports).
  *
  * Rules:
