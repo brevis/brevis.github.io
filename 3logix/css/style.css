@@ -69,13 +69,21 @@ button { font-family: inherit; }
 .logo-shadow text { fill: #1f2b55; opacity: .85; }
 .logo-svg text, .logo-svg tspan { stroke: #1f2b55; stroke-width: 6px; stroke-linejoin: round; paint-order: stroke fill; }
 .logo-shadow text, .logo-shadow tspan { fill: #1f2b55; stroke: #1f2b55; stroke-width: 6px; }
-.logo--big { width: min(78vw, 340px); margin-top: 16vh; filter: drop-shadow(0 10px 16px rgba(20, 30, 70, .28)); animation: logo-in .7s cubic-bezier(.2,1.4,.4,1) both; }
+.logo--big { width: min(78vw, 340px); margin-top: 10vh; filter: drop-shadow(0 10px 16px rgba(20, 30, 70, .28)); animation: logo-in .7s cubic-bezier(.2,1.4,.4,1) both; }
 @keyframes logo-in { from { transform: scale(.6) rotate(-6deg); opacity: 0; } to { transform: none; opacity: 1; } }
 .logo--small { width: 112px; }
 .logo--small .logo-svg text, .logo--small .logo-svg tspan { stroke-width: 7px; }
 
 /* ---------- splash ---------- */
 .splash { justify-content: space-between; }
+/* Decorative empty board on the splash screen */
+.splash-board { flex: 1; width: 100%; display: grid; place-items: center; padding: 12px 0; }
+.board--preview {
+  --board-size: clamp(120px, calc(100dvh - 440px), min(62vw, 250px));
+  gap: 8px; padding: 8px; border-radius: 22px;
+  animation: pop-in .6s cubic-bezier(.2,1.3,.4,1) .15s both;
+}
+.board--preview .cell { border-radius: 16px; }
 .splash-bottom { display: flex; flex-direction: column; align-items: center; gap: 14px; margin-bottom: 4vh; width: 100%; max-width: 360px; }
 
 .btn {
@@ -268,6 +276,7 @@ button { font-family: inherit; }
   .slot { min-width: 40px; min-height: 40px; }
   .logo--small { width: 90px; }
   .splash .logo--big { margin-top: 3vh; width: min(40vw, 240px); }
+  .splash-board { display: none; }
   .splash-bottom { flex-direction: row; flex-wrap: wrap; justify-content: center; align-items: center; gap: 10px; margin-bottom: 2vh; max-width: none; }
 }
 @media (prefers-reduced-motion: reduce) {
