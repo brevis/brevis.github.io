@@ -179,12 +179,15 @@
       ctx.globalAlpha = 1;
     }
     function resize() {
+      const prevW = W;
       dpr = Math.min(window.devicePixelRatio || 1, liteMode ? 1 : 1.5);
       W = window.innerWidth; H = window.innerHeight;
       canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
       canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
       sprites.clear();
-      seed();
+      // Keep the existing dots when only the height changed (mobile URL bar showing/hiding),
+      // otherwise the background visibly teleports.
+      if (!dots.length || Math.abs(W - prevW) > 1) seed();
       draw(performance.now(), 0);
     }
     function loop(t) {
