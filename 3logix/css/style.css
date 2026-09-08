@@ -213,6 +213,7 @@ button { font-family: inherit; }
 #overlay.overlay { background: rgba(20, 30, 70, .32); }
 /* Result dialog is slightly translucent so the finished board shows through. */
 .dialog--result {
+  width: min(100%, 440px); /* room for the home icon plus both buttons on one row */
   background: linear-gradient(180deg, rgba(255, 255, 255, .8), rgba(238, 243, 255, .8));
   border: 1px solid rgba(255, 255, 255, .75);
   backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
@@ -224,19 +225,24 @@ button { font-family: inherit; }
 .dialog-text { font-size: 16px; color: var(--ink-soft); line-height: 1.4; }
 .dialog-stats { margin: 14px 0 4px; display: flex; justify-content: center; gap: 18px; font-size: 13px; color: var(--ink-soft); }
 .dialog-stats b { display: block; font-size: 20px; color: var(--ink); }
-.dialog-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 16px; }
-/* Home button of the result dialog: same look as the top-bar icon buttons (.icon-btn),
-   sitting half outside the panel's top-left corner. The fill is darker than the top bar's
-   glass because part of the circle overlaps the light panel. */
+.dialog-actions { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 10px; margin-top: 16px; }
+/* one uniform height for the icon and the two text buttons */
+.dialog-actions .btn { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 0 18px; }
+/* Home button: first item of the action row, set slightly apart from the deal buttons.
+   Same circle as the top-bar icon buttons, in the dialog's own (dark on light) palette. */
 .dialog-home {
-  position: absolute; top: -21px; left: -21px;
-  background: rgba(20, 30, 70, .45);
-  box-shadow: 0 6px 14px rgba(20, 30, 70, .3);
+  flex: 0 0 auto; width: 44px; height: 44px; border-radius: 50%;
+  border: 2px solid rgba(34, 50, 96, .16); background: rgba(34, 50, 96, .07); color: var(--ink);
+  display: grid; place-items: center; cursor: pointer;
+  margin-right: 8px; /* on top of the row's 10px gap */
+  transition: background .15s, transform .12s;
 }
-.dialog-home:hover { background: rgba(20, 30, 70, .55); }
-.dialog-home:active { background: rgba(20, 30, 70, .6); }
+.dialog-home svg { width: 22px; height: 22px; }
+.dialog-home:hover { background: rgba(34, 50, 96, .13); }
+.dialog-home:active { transform: scale(.92); background: rgba(34, 50, 96, .16); }
+.dialog-home:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 .dialog .btn-ghost { background: rgba(34,50,96,.08); color: var(--ink); border-color: rgba(34,50,96,.15); box-shadow: none; }
-.dialog .btn { font-size: 16px; padding: 11px 20px; }
+.dialog .btn { font-size: 16px; padding: 0 18px; }
 
 .dialog--rules { text-align: left; }
 
@@ -269,6 +275,13 @@ button { font-family: inherit; }
   .hand-label { font-size: 12px; }
 }
 /* Very narrow phones: keep two icon buttons per side plus the logo within the width. */
+/* Narrow phones: tighten the dialog so home + both buttons stay on one row. */
+@media (max-width: 430px) {
+  .dialog { padding: 24px 14px 18px; }
+  .dialog-actions { gap: 8px; flex-wrap: nowrap; }
+  .dialog-actions .btn { font-size: 14px; padding: 0 10px; min-width: 0; }
+  .dialog-home { width: 42px; height: 42px; margin-right: 4px; }
+}
 @media (max-width: 340px) {
   .logo--small { width: 104px; }
   .topbar-left, .topbar-right { gap: 6px; }
