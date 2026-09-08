@@ -16,6 +16,8 @@
   --board-size: clamp(180px, calc(100vh - 330px), min(92vw, 400px));
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
 }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -57,10 +59,13 @@ button { font-family: inherit; }
   position: relative; z-index: 1;
   height: 100vh; height: 100dvh;
   display: flex; flex-direction: column; align-items: center;
-  padding: calc(var(--safe-top) + 10px) 14px calc(var(--safe-bottom) + 12px);
+  padding: calc(var(--safe-top) + 10px) calc(var(--safe-right) + 14px) calc(var(--safe-bottom) + 12px) calc(var(--safe-left) + 14px);
   animation: fadein .35s ease both;
 }
 @keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
+/* Once the entrance animation has played, drop it so the screen no longer lives on an
+   animated compositor layer (some WebViews kept showing a stale, blank layer otherwise). */
+.screen.is-settled, .overlay.is-settled { animation: none; }
 
 /* ---------- logo ---------- */
 .logo-svg { display: block; width: 100%; height: auto; overflow: visible; }
@@ -71,7 +76,7 @@ button { font-family: inherit; }
 .logo-shadow text, .logo-shadow tspan { fill: #1f2b55; stroke: #1f2b55; stroke-width: 6px; }
 .logo--big { width: min(78vw, 340px); margin-top: 10vh; filter: drop-shadow(0 10px 16px rgba(20, 30, 70, .28)); animation: logo-in .7s cubic-bezier(.2,1.4,.4,1) both; }
 @keyframes logo-in { from { transform: scale(.6) rotate(-6deg); opacity: 0; } to { transform: none; opacity: 1; } }
-.logo--small { width: 112px; }
+.logo--small { width: 140px; }
 .logo--small .logo-svg text, .logo--small .logo-svg tspan { stroke-width: 7px; }
 
 /* ---------- splash ---------- */
@@ -117,7 +122,6 @@ button { font-family: inherit; }
 .topbar-left { display: flex; gap: 8px; justify-self: start; }
 .topbar-right { display: flex; gap: 8px; justify-self: end; }
 .topbar-center { display: flex; flex-direction: column; align-items: center; gap: 0; }
-.topbar-caption { font-size: 10px; font-weight: 700; letter-spacing: 1.6px; text-transform: uppercase; color: rgba(255,255,255,.75); margin-top: -2px; }
 .icon-btn {
   width: 42px; height: 42px; border-radius: 50%; border: 2px solid var(--glass-border);
   background: var(--glass); color: #fff; cursor: pointer; display: grid; place-items: center;
@@ -133,6 +137,8 @@ button { font-family: inherit; }
    column so it never pushes the name off the centre line. */
 .hand-label { width: 100%; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; column-gap: 8px; font-weight: 600; font-size: 14px; letter-spacing: .5px; text-transform: uppercase; color: rgba(255,255,255,.85); }
 .hand-name { grid-column: 2; }
+.hand-diff { grid-column: 1; justify-self: end; font-size: 11px; font-weight: 700; letter-spacing: 1.2px; padding: 3px 9px; border-radius: 999px; background: rgba(20,30,70,.25); color: rgba(255,255,255,.85); white-space: nowrap; }
+.hand-diff:empty { display: none; }
 .hand-badge { grid-column: 3; justify-self: start; white-space: nowrap; font-size: 12px; font-weight: 600; padding: 2px 9px; border-radius: 999px; background: rgba(20,30,70,.25); text-transform: none; letter-spacing: 0; opacity: 0; transition: opacity .2s; }
 .hand-badge.is-on { opacity: 1; }
 .hand { display: flex; gap: 8px; justify-content: center; }
@@ -214,7 +220,7 @@ button { font-family: inherit; }
   animation: fadein .25s ease both;
 }
 .dialog {
-  width: min(92vw, 380px);
+  width: min(100%, 380px);
   background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(238,243,255,.98));
   color: var(--ink);
   border-radius: 28px; padding: 26px 22px 20px;
@@ -238,6 +244,10 @@ button { font-family: inherit; }
 .dialog-stats { margin: 14px 0 4px; display: flex; justify-content: center; gap: 18px; font-size: 13px; color: var(--ink-soft); }
 .dialog-stats b { display: block; font-size: 20px; color: var(--ink); }
 .dialog-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 16px; }
+.dialog-secondary { margin-top: 6px; display: flex; justify-content: center; }
+.btn-link { background: transparent; box-shadow: none; color: var(--ink-soft); font-size: 15px; padding: 10px 14px; display: inline-flex; align-items: center; gap: 6px; min-height: 44px; }
+.btn-link svg { width: 18px; height: 18px; }
+.btn-link:hover { color: var(--ink); background: rgba(34,50,96,.06); }
 .dialog .btn-ghost { background: rgba(34,50,96,.08); color: var(--ink); border-color: rgba(34,50,96,.15); box-shadow: none; }
 .dialog .btn { font-size: 16px; padding: 11px 20px; }
 
@@ -263,7 +273,7 @@ button { font-family: inherit; }
 }
 /* Very narrow phones: keep two icon buttons per side plus the logo within the width. */
 @media (max-width: 340px) {
-  .logo--small { width: 96px; }
+  .logo--small { width: 104px; }
   .topbar-left, .topbar-right { gap: 6px; }
 }
 /* Short landscape viewports (phones rotated): hands beside the board, page may scroll. */

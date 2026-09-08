@@ -450,7 +450,7 @@
   // ---------------------------------------------------------------------------
   function showDialog(el, primary) {
     if (el.hidden) lastFocus = document.activeElement;
-    el.hidden = false;
+    el.hidden = false; unsettle(el);
     ui.game.inert = true; ui.splash.inert = true;
     if (primary) primary.focus();
   }
@@ -658,12 +658,12 @@
     drag = null;
     ui.dragLayer.innerHTML = '';
     closeDialogs();
-    ui.game.hidden = true; ui.splash.hidden = false;
+    ui.game.hidden = true; ui.splash.hidden = false; unsettle(ui.splash);
     demoStart();
   }
   function showGame() {
     demoStop();
-    ui.splash.hidden = true; ui.game.hidden = false;
+    ui.splash.hidden = true; ui.game.hidden = false; unsettle(ui.game);
   }
   function renderRules() {
     const body = $('#rules-body');
@@ -711,6 +711,7 @@
   $('#btn-restart').addEventListener('click', () => { if (deal) startGame({ pHand: deal.pHand, aHand: deal.aHand }); });
   $('#btn-again').addEventListener('click', () => startGame());
   $('#btn-retry').addEventListener('click', () => startGame({ pHand: deal.pHand, aHand: deal.aHand }));
+  $('#btn-result-home').addEventListener('click', showSplash);
   ui.overlay.addEventListener('click', (ev) => { if (ev.target === ui.overlay) hideResult(); });
   const openRules = () => { renderRules(); showDialog(ui.rules, $('#btn-rules-close')); };
   $('#btn-rules').addEventListener('click', openRules);
@@ -730,6 +731,19 @@
     setDifficulty(d) { if (DIFF[d]) { difficulty = d; store.set('difficulty', d); } },
     get demoRunning() { return demo.running; },
   };
+
+  // After an entrance animation finishes, mark the element settled (see .is-settled in CSS).
+  $$('.screen, .overlay').forEach((el) => {
+    el.addEventListener('animationend', (ev) => { if (ev.target === el) el.classList.add('is-settled'); });
+  });
+  const unsettle = (el) => el.classList.remove('is-settled');
+
+  // Offline support for the hosted web version (skipped on localhost so the dev server always serves fresh files;
+  // ?sw=1 forces registration for testing). Native shells load files locally and do not need it.
+  if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol) &&
+      (params.get('sw') === '1' || !/^(localhost|127\.0\.0\.1)$/.test(location.hostname))) {
+    window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => { /* offline support is optional */ }); });
+  }
 
   initBokeh();
   if (params.get('autostart') === '1') { showGame(); startGame(); }
