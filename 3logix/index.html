@@ -71,9 +71,14 @@
   <!-- Game -->
   <section id="game" class="screen game" hidden>
     <header class="topbar">
-      <button type="button" id="btn-home" class="icon-btn" aria-label="Home" title="Home" data-i18n-aria="home">
-        <svg viewBox="0 0 24 24"><path d="M4 11.5 12 5l8 6.5V20a1 1 0 0 1-1 1h-5v-6h-4v6H5a1 1 0 0 1-1-1z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
-      </button>
+      <div class="topbar-left">
+        <button type="button" id="btn-home" class="icon-btn" aria-label="Home" title="Home" data-i18n-aria="home">
+          <svg viewBox="0 0 24 24"><path d="M4 11.5 12 5l8 6.5V20a1 1 0 0 1-1 1h-5v-6h-4v6H5a1 1 0 0 1-1-1z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+        </button>
+        <button type="button" id="btn-rules" class="icon-btn" aria-label="Rules" title="Rules" data-i18n-aria="rules">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.6 2.2c-.7.4-1.1.9-1.1 1.8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="16.8" r="1.2" fill="currentColor"/></svg>
+        </button>
+      </div>
       <div class="topbar-center">
       <div class="logo logo--small" aria-hidden="true">
         <svg viewBox="0 0 360 120" class="logo-svg">
@@ -86,11 +91,11 @@
       <div class="topbar-caption" id="diff-caption"></div>
       </div>
       <div class="topbar-right">
-        <button type="button" id="btn-rules" class="icon-btn" aria-label="Rules" title="Rules" data-i18n-aria="rules">
-          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.6 2.2c-.7.4-1.1.9-1.1 1.8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="16.8" r="1.2" fill="currentColor"/></svg>
+        <button type="button" id="btn-restart" class="icon-btn" aria-label="Restart this deal" title="Restart this deal" data-i18n-aria="restartDeal" disabled>
+          <svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.4-5.7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M4 4v5h5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </button>
-        <button type="button" id="btn-new" class="icon-btn" aria-label="New game" title="New game" data-i18n-aria="newGame">
-          <svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.4-5.7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 4v5h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <button type="button" id="btn-new" class="icon-btn" aria-label="New deal" title="New deal" data-i18n-aria="newDeal">
+          <svg viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="17" height="17" rx="4.5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="8.3" cy="8.3" r="1.7" fill="currentColor"/><circle cx="15.7" cy="8.3" r="1.7" fill="currentColor"/><circle cx="12" cy="12" r="1.7" fill="currentColor"/><circle cx="8.3" cy="15.7" r="1.7" fill="currentColor"/><circle cx="15.7" cy="15.7" r="1.7" fill="currentColor"/></svg>
         </button>
       </div>
     </header>

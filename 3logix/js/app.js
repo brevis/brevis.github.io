@@ -15,7 +15,7 @@
     en: {
       play: 'Play', howToPlay: 'How to play', easy: 'Easy', normal: 'Normal', hard: 'Hard',
       ai: 'AI', you: 'You', aiTurn: 'thinking',
-      home: 'Home', rules: 'Rules', newGame: 'New game', board: 'Board', difficultyLabel: 'Difficulty',
+      home: 'Home', rules: 'Rules', restartDeal: 'Restart this deal', board: 'Board', difficultyLabel: 'Difficulty',
       turnPick: 'Your move — pick a piece', turnPlace: 'Now tap an empty cell', aiThinking: 'AI is thinking…',
       dealing: 'Dealing…',
       win: 'You win!', lose: 'AI wins', draw: 'Draw',
@@ -40,7 +40,7 @@
     ru: {
       play: 'Играть', howToPlay: 'Как играть', easy: 'Легко', normal: 'Нормально', hard: 'Сложно',
       ai: 'ИИ', you: 'Вы', aiTurn: 'думает',
-      home: 'На главную', rules: 'Правила', newGame: 'Новая игра', board: 'Поле', difficultyLabel: 'Сложность',
+      home: 'На главную', rules: 'Правила', restartDeal: 'Начать раздачу заново', board: 'Поле', difficultyLabel: 'Сложность',
       turnPick: 'Ваш ход — выберите фишку', turnPlace: 'Теперь нажмите на пустую клетку', aiThinking: 'ИИ думает…',
       dealing: 'Раздача…',
       win: 'Победа!', lose: 'Выиграл ИИ', draw: 'Ничья',
@@ -151,7 +151,7 @@
   const ui = {
     splash: $('#splash'), game: $('#game'), board: $('#board'), handAi: $('#hand-ai'), handPlayer: $('#hand-player'),
     status: $('#status'), overlay: $('#overlay'), rules: $('#rules'), dragLayer: $('#drag-layer'),
-    aiBadge: $('#ai-badge'),
+    aiBadge: $('#ai-badge'), restart: $('#btn-restart'),
   };
   let game = null;        // Engine.Game
   let deal = null;        // { pHand, aHand, ... }
@@ -222,8 +222,16 @@
     ui.handAi.innerHTML = ''; ui.handPlayer.innerHTML = '';
     renderBoard();
     $('#diff-caption').textContent = t(difficulty);
+    syncRestartButton();
     setStatus(t('dealing'), true);
-    requestAnimationFrame(() => setTimeout(() => { if (gen === generation) beginGame(makeDeal()); }, 0));
+    let started = false;
+    const go = () => {
+      if (started) return;
+      started = true;
+      if (gen === generation) beginGame(makeDeal());
+    };
+    requestAnimationFrame(() => setTimeout(go, 0)); // after the "dealing" frame has painted
+    setTimeout(go, 250);                             // fallback: rAF never fires in a hidden tab
   }
 
   function beginGame(d) {
@@ -235,7 +243,13 @@
     renderBoard();
     renderHands();
     updateTurn();
+    syncRestartButton();
     prefetchDeal();
+  }
+
+  /** "Restart this deal" only makes sense once at least one piece is on the board. */
+  function syncRestartButton() {
+    ui.restart.disabled = !(game && game.moves.length > 0);
   }
 
   function renderBoard() {
@@ -329,6 +343,7 @@
 
   function placePiece(side, slot, cell, animateIn) {
     const result = game.play(side, slot.type, cell);
+    syncRestartButton();
     slot.used = true;
     slot.el.classList.add('is-empty');
     slot.el.classList.remove('is-selected', 'is-dragging');
@@ -693,6 +708,7 @@
   $('#btn-play').addEventListener('click', () => { showGame(); startGame(); });
   $('#btn-home').addEventListener('click', showSplash);
   $('#btn-new').addEventListener('click', () => startGame());
+  $('#btn-restart').addEventListener('click', () => { if (deal) startGame({ pHand: deal.pHand, aHand: deal.aHand }); });
   $('#btn-again').addEventListener('click', () => startGame());
   $('#btn-retry').addEventListener('click', () => startGame({ pHand: deal.pHand, aHand: deal.aHand }));
   ui.overlay.addEventListener('click', (ev) => { if (ev.target === ui.overlay) hideResult(); });
