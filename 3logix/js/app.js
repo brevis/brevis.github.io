@@ -24,6 +24,7 @@
       drawText: 'You could have won this deal. Try it again?',
       retryDeal: 'Retry this deal', newDeal: 'New deal', gotIt: 'Got it', rulesTitle: 'How to play',
       wins: 'Wins', losses: 'Losses', draws: 'Draws',
+      liteToggle: 'Reduce effects (for slower phones)',
       shapes3: { circle: 'circles', diamond: 'diamonds', square: 'squares' },
       colors3: { blue: 'violet pieces', red: 'red pieces', yellow: 'yellow pieces' },
       shapeNames: { circle: 'circle', diamond: 'diamond', square: 'square' },
@@ -49,6 +50,7 @@
       drawText: 'Эту раздачу можно было выиграть. Попробуете ещё раз?',
       retryDeal: 'Та же раздача', newDeal: 'Новая раздача', gotIt: 'Понятно', rulesTitle: 'Как играть',
       wins: 'Победы', losses: 'Поражения', draws: 'Ничьи',
+      liteToggle: 'Упростить эффекты (для слабых телефонов)',
       shapes3: { circle: 'круга', diamond: 'ромба', square: 'квадрата' },
       colors3: { blue: 'фиолетовые фишки', red: 'красные фишки', yellow: 'жёлтые фишки' },
       shapeNames: { circle: 'круг', diamond: 'ромб', square: 'квадрат' },
@@ -113,6 +115,7 @@
       gloss = '<ellipse cx="40" cy="30" rx="20" ry="9"/>';
     }
     return '<svg class="piece piece--' + shape + ' piece--' + color + '" viewBox="0 0 100 100" data-type="' + type + '" role="img" aria-label="' + pieceName(type) + '">' +
+      '<g fill="rgba(20,30,70,.32)" transform="translate(0,4)">' + body + '</g>' +
       '<g fill="url(#g-' + color + ')" stroke="' + STROKE[color] + '" stroke-width="5" stroke-linejoin="round">' + body + '</g>' +
       '<g fill="url(#g-gloss)">' + gloss + '</g></svg>';
   }
@@ -126,23 +129,80 @@
   }
 
   // ---------------------------------------------------------------------------
-  // Bokeh background
+  // Bokeh background: one canvas with pre-rendered soft dots, throttled to 30 fps
+  // (20 fps in lite mode). Far cheaper on phones than dozens of blurred DOM layers.
   // ---------------------------------------------------------------------------
-  function initBokeh() {
-    const host = $('#bokeh');
-    const n = Math.min(46, Math.max(24, Math.round(window.innerWidth * window.innerHeight / 14000)));
-    let html = '';
-    for (let i = 0; i < n; i++) {
-      const s = 5 + Math.random() * 30;
-      const blur = s > 22 ? 2 + Math.random() * 3 : Math.random() * 1.5;
-      const o = 0.25 + Math.random() * 0.6;
-      const d = 14 + Math.random() * 22;
-      const delay = -Math.random() * d;
-      const dx = (Math.random() * 60 - 30).toFixed(0) + 'px';
-      const dy = (-20 - Math.random() * 90).toFixed(0) + 'px';
-      html += '<span style="--x:' + (Math.random() * 100).toFixed(1) + '%;--y:' + (Math.random() * 100).toFixed(1) + '%;--s:' + s.toFixed(1) + 'px;--b:' + blur.toFixed(1) + 'px;--o:' + o.toFixed(2) + ';--d:' + d.toFixed(1) + 's;--delay:' + delay.toFixed(1) + 's;--dx:' + dx + ';--dy:' + dy + '"></span>';
+  function createBokeh(host, opts) {
+    const canvas = document.createElement('canvas');
+    host.innerHTML = '';
+    host.appendChild(canvas);
+    const ctx = canvas.getContext('2d');
+    const sprites = new Map();
+    let dpr = 1, W = 0, H = 0, dots = [], raf = 0, last = 0, running = false;
+    let liteMode = !!opts.lite;
+    const staticMode = !!opts.static;
+    function sprite(size, soft) {
+      const key = size + (soft ? 's' : 'h');
+      let c = sprites.get(key);
+      if (c) return c;
+      c = document.createElement('canvas');
+      const s = Math.max(2, Math.ceil(size * dpr));
+      c.width = c.height = s;
+      const g = c.getContext('2d');
+      const grad = g.createRadialGradient(s * 0.42, s * 0.38, 0, s / 2, s / 2, s / 2);
+      grad.addColorStop(0, 'rgba(255,255,255,.95)');
+      grad.addColorStop(soft ? 0.2 : 0.45, 'rgba(255,255,255,.55)');
+      grad.addColorStop(1, 'rgba(255,255,255,0)');
+      g.fillStyle = grad;
+      g.fillRect(0, 0, s, s);
+      sprites.set(key, c);
+      return c;
     }
-    host.innerHTML = html;
+    function seed() {
+      const n = liteMode ? 12 : Math.min(36, Math.max(16, Math.round(W * H / 18000)));
+      dots = [];
+      for (let i = 0; i < n; i++) {
+        const size = Math.round(6 + Math.random() * 30);
+        dots.push({ x: Math.random() * W, y: Math.random() * H, size, soft: size > 20, o: 0.25 + Math.random() * 0.55,
+          vx: (Math.random() - 0.5) * 6, vy: -(4 + Math.random() * 10), ph: Math.random() * 6.28 });
+      }
+    }
+    function draw(t, dt) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const k = dt / 1000;
+      for (let i = 0; i < dots.length; i++) {
+        const d = dots[i];
+        d.x += d.vx * k; d.y += d.vy * k;
+        if (d.y < -d.size) { d.y = H + d.size; d.x = Math.random() * W; }
+        if (d.x < -d.size) d.x = W + d.size; else if (d.x > W + d.size) d.x = -d.size;
+        ctx.globalAlpha = d.o * (0.8 + 0.2 * Math.sin(t / 1800 + d.ph));
+        ctx.drawImage(sprite(d.size, d.soft), Math.round((d.x - d.size / 2) * dpr), Math.round((d.y - d.size / 2) * dpr));
+      }
+      ctx.globalAlpha = 1;
+    }
+    function resize() {
+      dpr = Math.min(window.devicePixelRatio || 1, liteMode ? 1 : 1.5);
+      W = window.innerWidth; H = window.innerHeight;
+      canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
+      canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+      sprites.clear();
+      seed();
+      draw(performance.now(), 0);
+    }
+    function loop(t) {
+      if (!running) return;
+      const step = liteMode ? 50 : 33;
+      if (t - last >= step) { draw(t, Math.min(100, t - last)); last = t; }
+      raf = requestAnimationFrame(loop);
+    }
+    function start() { if (running || staticMode) return; running = true; last = performance.now(); raf = requestAnimationFrame(loop); }
+    function stop() { running = false; cancelAnimationFrame(raf); }
+    let resizeTimer = null;
+    window.addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(resize, 150); });
+    document.addEventListener('visibilitychange', () => { if (document.hidden) stop(); else start(); });
+    resize();
+    start();
+    return { setLite(v) { liteMode = !!v; resize(); }, start, stop };
   }
 
   // ---------------------------------------------------------------------------
@@ -167,6 +227,48 @@
   let generation = 0;     // bumps on every startGame; guards async deal callbacks
   let lastFocus = null;   // element to return focus to when a dialog closes
   const reduceMotion = () => window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // ---------------------------------------------------------------------------
+  // Lite mode: fewer visual effects on slow devices. Chosen by ?lite=1|0, the user's
+  // switch in the rules dialog, a device heuristic, or a frame-rate probe at start-up.
+  // ---------------------------------------------------------------------------
+  let lite = false, liteSource = 'auto', bokeh = null;
+  (function detectLite() {
+    const p = params.get('lite');
+    if (p === '1' || p === '0') { lite = p === '1'; liteSource = 'param'; return; }
+    const saved = store.get('lite', null);
+    if (saved === true || saved === false) { lite = saved; liteSource = 'user'; return; }
+    const mem = navigator.deviceMemory, cores = navigator.hardwareConcurrency;
+    if ((mem && mem <= 3) || (cores && cores <= 4 && /Android/i.test(navigator.userAgent))) lite = true;
+  })();
+  function applyLite() {
+    document.documentElement.classList.toggle('lite', lite);
+    if (bokeh) bokeh.setLite(lite);
+    const cb = $('#lite-toggle');
+    if (cb) cb.checked = lite;
+  }
+  function setLite(v, source) {
+    lite = !!v; liteSource = source || 'user';
+    if (liteSource === 'user') store.set('lite', lite);
+    applyLite();
+  }
+  /** If the device cannot hold ~40 fps while idling on the splash, switch to lite automatically. */
+  function probeFrameRate() {
+    if (lite || liteSource !== 'auto' || reduceMotion()) return;
+    const deltas = []; let prev = 0;
+    function tick(t) {
+      if (prev) deltas.push(t - prev);
+      prev = t;
+      if (deltas.length < 60 && !document.hidden) requestAnimationFrame(tick); else finish();
+    }
+    function finish() {
+      const s = deltas.filter((d) => d < 200).sort((a, b) => a - b);
+      if (s.length < 30) return;
+      const median = s[Math.floor(s.length / 2)];
+      if (median > 24) setLite(true, 'auto');
+    }
+    setTimeout(() => { if (!document.hidden) requestAnimationFrame(tick); }, 1500);
+  }
   const seedParam = seedFromParams();
   let rng = E.mulberry32(seedParam != null ? seedParam : (Math.random() * 4294967296) >>> 0);
 
@@ -396,7 +498,7 @@
       { transform: 'translate(-50%,-50%) scale(1)' },
       { transform: 'translate(-50%,-50%) translate(' + (dx * 0.5) + 'px,' + (dy * 0.5) + 'px) scale(' + ((1 + scale) / 2 * 1.25) + ')', offset: 0.5 },
       { transform: 'translate(-50%,-50%) translate(' + dx + 'px,' + dy + 'px) scale(' + scale + ')' },
-    ], { duration: reduceMotion() ? 1 : 520, easing: 'cubic-bezier(.35,.1,.3,1)', fill: 'forwards' });
+    ], { duration: reduceMotion() ? 1 : (lite ? 320 : 520), easing: 'cubic-bezier(.35,.1,.3,1)', fill: 'forwards' });
     aiAnim = anim;
     anim.onfinish = () => {
       ghost.remove();
@@ -673,7 +775,9 @@
       '<div class="rule-row"><span class="mini">' + ex1 + '</span><span class="mini">' + ex2 + '</span></div>' +
       '<p>' + T.rules[2] + '</p>' +
       '<p>' + T.rules[3] + '</p>' +
-      '<p>' + T.rules[4] + '</p>';
+      '<p>' + T.rules[4] + '</p>' +
+      '<label class="rules-toggle"><input type="checkbox" id="lite-toggle"' + (lite ? ' checked' : '') + '><span>' + t('liteToggle') + '</span></label>';
+    $('#lite-toggle').addEventListener('change', (ev) => setLite(ev.target.checked, 'user'));
   }
 
   function paintDifficulty() {
@@ -728,6 +832,7 @@
     get game() { return game; }, get deal() { return deal; }, get selected() { return selected; }, get busy() { return busy; },
     setDifficulty(d) { if (DIFF[d]) { difficulty = d; store.set('difficulty', d); } },
     get demoRunning() { return demo.running; },
+    get lite() { return lite; }, get liteSource() { return liteSource; }, setLite,
   };
 
   // After an entrance animation finishes, mark the element settled (see .is-settled in CSS).
@@ -743,7 +848,9 @@
     window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => { /* offline support is optional */ }); });
   }
 
-  initBokeh();
+  applyLite();
+  bokeh = createBokeh($('#bokeh'), { lite, static: reduceMotion() });
+  probeFrameRate();
   if (params.get('autostart') === '1') { showGame(); startGame(); }
   else { prefetchDeal(); demoStart(); }
   document.addEventListener('visibilitychange', () => {

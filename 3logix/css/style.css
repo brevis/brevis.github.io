@@ -36,23 +36,9 @@ body {
 button { font-family: inherit; }
 [hidden] { display: none !important; }
 
-/* ---------- bokeh background ---------- */
+/* ---------- bokeh background (canvas, see createBokeh in app.js) ---------- */
 .bokeh { position: fixed; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; }
-.bokeh span {
-  position: absolute;
-  left: var(--x); top: var(--y);
-  width: var(--s); height: var(--s);
-  border-radius: 50%;
-  background: radial-gradient(circle at 40% 35%, rgba(255,255,255,0.95), rgba(255,255,255,0.55) 45%, rgba(255,255,255,0) 72%);
-  opacity: var(--o);
-  filter: blur(var(--b));
-  animation: drift var(--d) ease-in-out var(--delay) infinite alternate;
-  will-change: transform;
-}
-@keyframes drift {
-  from { transform: translate3d(0, 0, 0) scale(1); }
-  to   { transform: translate3d(var(--dx), var(--dy), 0) scale(1.12); }
-}
+.bokeh canvas { display: block; width: 100%; height: 100%; }
 
 /* ---------- screens ---------- */
 .screen {
@@ -192,7 +178,7 @@ button { font-family: inherit; }
 @keyframes win-pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.05); } }
 @keyframes piece-bounce { from { transform: translateY(0) rotate(-4deg); } to { transform: translateY(-4px) rotate(4deg); } }
 
-.piece { display: block; filter: drop-shadow(0 4px 4px rgba(20,30,70,.35)); }
+.piece { display: block; } /* shadow is drawn inside the SVG (cheaper than a filter) */
 .piece.is-placed { animation: place-in .32s cubic-bezier(.2,1.5,.4,1) both; }
 @keyframes place-in { from { transform: scale(.4); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 
@@ -203,13 +189,12 @@ button { font-family: inherit; }
 
 /* ---------- drag ghost ---------- */
 .drag-layer { position: fixed; inset: 0; pointer-events: none; z-index: 20; }
-.drag-ghost { position: absolute; width: 72px; height: 72px; transform: translate(-50%, -50%) scale(1.15); filter: drop-shadow(0 10px 12px rgba(20,30,70,.45)); }
+.drag-ghost { position: absolute; width: 72px; height: 72px; transform: translate(-50%, -50%) scale(1.15); }
 
 /* ---------- overlays ---------- */
 .overlay {
   position: fixed; inset: 0; z-index: 30;
-  background: rgba(20, 30, 70, .45);
-  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  background: rgba(20, 30, 70, .5);
   display: grid; place-items: center; padding: 20px;
   overflow-y: auto; overscroll-behavior: contain; /* tall dialogs scroll instead of clipping */
   animation: fadein .25s ease both;
@@ -225,7 +210,7 @@ button { font-family: inherit; }
   animation: pop-in .4s cubic-bezier(.2,1.4,.4,1) both;
 }
 @keyframes pop-in { from { transform: scale(.7); opacity: 0; } to { transform: none; opacity: 1; } }
-#overlay.overlay { background: rgba(20, 30, 70, .3); backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px); }
+#overlay.overlay { background: rgba(20, 30, 70, .32); }
 /* Result dialog is slightly translucent so the finished board shows through. */
 .dialog--result {
   background: linear-gradient(180deg, rgba(255, 255, 255, .8), rgba(238, 243, 255, .8));
@@ -254,6 +239,18 @@ button { font-family: inherit; }
 .dialog .btn { font-size: 16px; padding: 11px 20px; }
 
 .dialog--rules { text-align: left; }
+.rules-toggle { display: flex; align-items: center; gap: 10px; margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(34,50,96,.12); font-size: 14px; color: var(--ink); cursor: pointer; }
+.rules-toggle input { width: 20px; height: 20px; accent-color: #f4a24b; margin: 0; }
+
+/* ---------- lite mode: cheaper effects for slow devices ---------- */
+.lite .logo--big { filter: none; animation: none; }
+.lite .screen, .lite .overlay, .lite .dialog { animation: none; }
+.lite .piece.is-placed { animation-duration: .18s; }
+.lite .cell.is-win, .lite .cell.is-win .piece, .lite .cell.is-win .piece.is-placed { animation: none; }
+.lite .status .dot { animation: none; }
+.lite .dialog--result { backdrop-filter: none; -webkit-backdrop-filter: none; background: linear-gradient(180deg, rgba(255,255,255,.94), rgba(238,243,255,.94)); }
+.lite .board--preview .piece { transition: opacity .25s ease; }
+.lite .board--preview.is-fading .piece { transform: none; }
 .dialog--rules .dialog-title { text-align: center; font-size: 30px; }
 .rules-body { font-size: 15px; line-height: 1.45; color: var(--ink); }
 .rules-body p { margin: 8px 0; }
