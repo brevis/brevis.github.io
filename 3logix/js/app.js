@@ -14,7 +14,7 @@
   const STRINGS = {
     en: {
       play: 'Play', howToPlay: 'How to play', easy: 'Easy', normal: 'Normal', hard: 'Hard',
-      ai: 'AI', you: 'You', aiTurn: 'thinking',
+      ai: 'AI', you: 'You',
       home: 'Home', rules: 'Rules', restartDeal: 'Restart this deal', board: 'Board', difficultyLabel: 'Difficulty',
       turnPick: 'Your move — pick a piece', turnPlace: 'Now tap an empty cell', aiThinking: 'AI is thinking…',
       dealing: 'Dealing…',
@@ -39,7 +39,7 @@
     },
     ru: {
       play: 'Играть', howToPlay: 'Как играть', easy: 'Легко', normal: 'Нормально', hard: 'Сложно',
-      ai: 'ИИ', you: 'Вы', aiTurn: 'думает',
+      ai: 'ИИ', you: 'Вы',
       home: 'На главную', rules: 'Правила', restartDeal: 'Начать раздачу заново', board: 'Поле', difficultyLabel: 'Сложность',
       turnPick: 'Ваш ход — выберите фишку', turnPlace: 'Теперь нажмите на пустую клетку', aiThinking: 'ИИ думает…',
       dealing: 'Раздача…',
@@ -151,7 +151,7 @@
   const ui = {
     splash: $('#splash'), game: $('#game'), board: $('#board'), handAi: $('#hand-ai'), handPlayer: $('#hand-player'),
     status: $('#status'), overlay: $('#overlay'), rules: $('#rules'), dragLayer: $('#drag-layer'),
-    aiBadge: $('#ai-badge'), restart: $('#btn-restart'),
+    restart: $('#btn-restart'),
   };
   let game = null;        // Engine.Game
   let deal = null;        // { pHand, aHand, ... }
@@ -306,7 +306,6 @@
     const side = game.sideToMove();
     const playerTurn = side === 'P';
     ui.handPlayer.classList.toggle('is-locked', !playerTurn);
-    ui.aiBadge.textContent = t('aiTurn'); ui.aiBadge.classList.toggle('is-on', !playerTurn); ui.aiBadge.setAttribute('aria-hidden', String(playerTurn));
     playerSlots.forEach((s) => s.el.classList.toggle('is-selectable', playerTurn && !s.used));
     if (playerTurn) {
       setStatus(selected == null ? t('turnPick') : t('turnPlace'));
@@ -416,7 +415,6 @@
     busy = true;
     highlightTargets(false);
     ui.handPlayer.classList.add('is-locked');
-    ui.aiBadge.classList.remove('is-on');
     selected = null;
     syncSelected();
     playerSlots.forEach((s) => s.el.classList.remove('is-selectable'));

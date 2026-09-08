@@ -98,7 +98,7 @@
     </header>
 
     <div class="hand-area hand-area--ai">
-      <div class="hand-label"><span class="hand-diff" id="diff-caption"></span><span class="hand-name" data-i18n="ai">AI</span><span class="hand-badge" id="ai-badge"></span></div>
+      <div class="hand-label"><span class="hand-name" data-i18n="ai">AI</span><span class="hand-diff" id="diff-caption"></span></div>
       <div class="hand" id="hand-ai"></div>
     </div>
 
@@ -117,18 +117,15 @@
   <!-- Result overlay -->
   <div id="overlay" class="overlay" hidden>
     <div class="dialog dialog--result" role="dialog" aria-modal="true" aria-labelledby="result-title">
+      <button type="button" id="btn-result-home" class="dialog-home" aria-label="Home" title="Home" data-i18n-aria="home">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11.5 12 5l8 6.5V20a1 1 0 0 1-1 1h-5v-6h-4v6H5a1 1 0 0 1-1-1z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+      </button>
       <div class="dialog-title" id="result-title"></div>
       <div class="dialog-text" id="result-text"></div>
       <div class="dialog-stats" id="result-stats"></div>
       <div class="dialog-actions">
         <button type="button" id="btn-retry" class="btn btn-ghost" data-i18n="retryDeal">Retry this deal</button>
         <button type="button" id="btn-again" class="btn btn-primary" data-i18n="newDeal">New deal</button>
-      </div>
-      <div class="dialog-secondary">
-        <button type="button" id="btn-result-home" class="btn btn-link">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11.5 12 5l8 6.5V20a1 1 0 0 1-1 1h-5v-6h-4v6H5a1 1 0 0 1-1-1z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
-          <span data-i18n="home">Home</span>
-        </button>
       </div>
     </div>
   </div>
