@@ -24,7 +24,6 @@
       drawText: 'You could have won this deal. Try it again?',
       retryDeal: 'Retry this deal', newDeal: 'New deal', gotIt: 'Got it', rulesTitle: 'How to play',
       wins: 'Wins', losses: 'Losses', draws: 'Draws',
-      liteToggle: 'Reduce effects (for slower phones)',
       shapes3: { circle: 'circles', diamond: 'diamonds', square: 'squares' },
       colors3: { blue: 'violet pieces', red: 'red pieces', yellow: 'yellow pieces' },
       shapeNames: { circle: 'circle', diamond: 'diamond', square: 'square' },
@@ -50,7 +49,6 @@
       drawText: 'Эту раздачу можно было выиграть. Попробуете ещё раз?',
       retryDeal: 'Та же раздача', newDeal: 'Новая раздача', gotIt: 'Понятно', rulesTitle: 'Как играть',
       wins: 'Победы', losses: 'Поражения', draws: 'Ничьи',
-      liteToggle: 'Упростить эффекты (для слабых телефонов)',
       shapes3: { circle: 'круга', diamond: 'ромба', square: 'квадрата' },
       colors3: { blue: 'фиолетовые фишки', red: 'красные фишки', yellow: 'жёлтые фишки' },
       shapeNames: { circle: 'круг', diamond: 'ромб', square: 'квадрат' },
@@ -244,8 +242,6 @@
   function applyLite() {
     document.documentElement.classList.toggle('lite', lite);
     if (bokeh) bokeh.setLite(lite);
-    const cb = $('#lite-toggle');
-    if (cb) cb.checked = lite;
   }
   function setLite(v, source) {
     lite = !!v; liteSource = source || 'user';
@@ -775,9 +771,7 @@
       '<div class="rule-row"><span class="mini">' + ex1 + '</span><span class="mini">' + ex2 + '</span></div>' +
       '<p>' + T.rules[2] + '</p>' +
       '<p>' + T.rules[3] + '</p>' +
-      '<p>' + T.rules[4] + '</p>' +
-      '<label class="rules-toggle"><input type="checkbox" id="lite-toggle"' + (lite ? ' checked' : '') + '><span>' + t('liteToggle') + '</span></label>';
-    $('#lite-toggle').addEventListener('change', (ev) => setLite(ev.target.checked, 'user'));
+      '<p>' + T.rules[4] + '</p>';
   }
 
   function paintDifficulty() {
