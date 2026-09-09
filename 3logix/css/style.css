@@ -10,8 +10,8 @@
   --glass-border: rgba(255, 255, 255, 0.38);
   --accent: #ffd35c;
   --accent-2: #f4a24b;
-  --font-ui: 'Fredoka', 'Nunito', 'Segoe UI', system-ui, -apple-system, sans-serif;
-  --font-logo: 'Luckiest Guy', 'Russo One', 'Arial Black', Impact, sans-serif;
+  --font-ui: 'Fredoka', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-logo: 'Luckiest Guy', 'Arial Black', Impact, sans-serif;
   /* board edge: never below 180px so short viewports stay playable */
   --board-size: clamp(180px, calc(100vh - 330px), min(92vw, 400px));
   --safe-top: env(safe-area-inset-top, 0px);
@@ -22,8 +22,6 @@
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body { height: 100%; margin: 0; overscroll-behavior: none; }
-/* Fredoka / Luckiest Guy have no Cyrillic glyphs: use fonts that do for the Russian UI. */
-html[lang='ru'] { --font-ui: 'Nunito', 'Fredoka', 'Segoe UI', system-ui, -apple-system, sans-serif; }
 body {
   font-family: var(--font-ui);
   color: #fff;

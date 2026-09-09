@@ -9,63 +9,35 @@
   // i18n
   // ---------------------------------------------------------------------------
   const params = new URLSearchParams(location.search);
-  const langParam = params.get('lang');
-  const LANG = (langParam || navigator.language || 'en').toLowerCase().indexOf('ru') === 0 ? 'ru' : 'en';
-  const STRINGS = {
-    en: {
-      play: 'Play', howToPlay: 'How to play', easy: 'Easy', normal: 'Normal', hard: 'Hard',
-      ai: 'AI', you: 'You',
-      home: 'Home', rules: 'Rules', restartDeal: 'Restart this deal', board: 'Board', difficultyLabel: 'Difficulty',
-      turnPick: 'Your move — pick a piece', turnPlace: 'Now tap an empty cell', aiThinking: 'AI is thinking…',
-      dealing: 'Dealing…',
-      win: 'You win!', lose: 'AI wins', draw: 'Draw',
-      winText: 'Three {what}. Nicely done!',
-      loseText: 'This deal was winnable — want another go?',
-      drawText: 'You could have won this deal. Try it again?',
-      retryDeal: 'Retry this deal', newDeal: 'New deal', gotIt: 'Got it', rulesTitle: 'How to play',
-      wins: 'Wins', losses: 'Losses', draws: 'Draws',
-      shapes3: { circle: 'circles', diamond: 'diamonds', square: 'squares' },
-      colors3: { blue: 'violet pieces', red: 'red pieces', yellow: 'yellow pieces' },
-      shapeNames: { circle: 'circle', diamond: 'diamond', square: 'square' },
-      colorNames: { blue: 'violet', red: 'red', yellow: 'yellow' },
-      cell: 'Cell {n}', usedSlot: 'Used: {piece}', showResult: 'Show result',
-      rules: [
-        'Make a line of three: a row, a column or a diagonal.',
-        'The three pieces must share a <b>shape</b> (any colors) or share a <b>color</b> (any shapes):',
-        'Pieces of <b>both</b> players count. Whoever completes a line wins.',
-        'You move first and hold 5 pieces; the AI holds 4. Both hands are open.',
-        'Every deal is checked in advance: with the right moves you can always win.',
-      ],
-    },
-    ru: {
-      play: 'Играть', howToPlay: 'Как играть', easy: 'Легко', normal: 'Нормально', hard: 'Сложно',
-      ai: 'ИИ', you: 'Вы',
-      home: 'На главную', rules: 'Правила', restartDeal: 'Начать раздачу заново', board: 'Поле', difficultyLabel: 'Сложность',
-      turnPick: 'Ваш ход — выберите фишку', turnPlace: 'Теперь нажмите на пустую клетку', aiThinking: 'ИИ думает…',
-      dealing: 'Раздача…',
-      win: 'Победа!', lose: 'Выиграл ИИ', draw: 'Ничья',
-      winText: 'Три {what}. Отлично!',
-      loseText: 'Эту раздачу можно было выиграть. Попробуете ещё раз?',
-      drawText: 'Эту раздачу можно было выиграть. Попробуете ещё раз?',
-      retryDeal: 'Та же раздача', newDeal: 'Новая раздача', gotIt: 'Понятно', rulesTitle: 'Как играть',
-      wins: 'Победы', losses: 'Поражения', draws: 'Ничьи',
-      shapes3: { circle: 'круга', diamond: 'ромба', square: 'квадрата' },
-      colors3: { blue: 'фиолетовые фишки', red: 'красные фишки', yellow: 'жёлтые фишки' },
-      shapeNames: { circle: 'круг', diamond: 'ромб', square: 'квадрат' },
-      colorNames: { blue: 'фиолетовый', red: 'красный', yellow: 'жёлтый' },
-      cell: 'Клетка {n}', usedSlot: 'Использована фишка: {piece}', showResult: 'Показать результат',
-      rules: [
-        'Соберите линию из трёх фишек: по горизонтали, вертикали или диагонали.',
-        'Все три фишки должны быть одной <b>формы</b> (любых цветов) или одного <b>цвета</b> (любых форм):',
-        'Считаются фишки <b>обоих</b> игроков. Побеждает тот, кто завершил линию.',
-        'Вы ходите первым и получаете 5 фишек, у ИИ — 4. Фишки обоих игроков открыты.',
-        'Каждая раздача проверена заранее: при правильной игре вы всегда можете выиграть.',
-      ],
-    },
+  const T = {
+  play: 'Play', howToPlay: 'How to play', easy: 'Easy', normal: 'Normal', hard: 'Hard',
+  ai: 'AI', you: 'You',
+  home: 'Home', rules: 'Rules', restartDeal: 'Restart this deal', board: 'Board', difficultyLabel: 'Difficulty',
+  turnPick: 'Your move — pick a piece', turnPlace: 'Now tap an empty cell', aiThinking: 'AI is thinking…',
+  dealing: 'Dealing…',
+  win: 'You win!', lose: 'AI wins', draw: 'Draw',
+  winText: 'Three {what}. Nicely done!',
+  winTextMulti: '{lines} at once: {what}. Brilliant!',
+  lineCount2: 'Two lines', lineCount3: 'Three lines', lineCount4: 'Four lines',
+  linePart: 'three {what}', listAnd: ' and ', listComma: ', ',
+  loseText: 'This deal was winnable — want another go?',
+  drawText: 'You could have won this deal. Try it again?',
+  retryDeal: 'Retry this deal', newDeal: 'New deal', gotIt: 'Got it', rulesTitle: 'How to play',
+  wins: 'Wins', losses: 'Losses', draws: 'Draws',
+  shapes3: { circle: 'circles', diamond: 'diamonds', square: 'squares' },
+  colors3: { blue: 'violet pieces', red: 'red pieces', yellow: 'yellow pieces' },
+  shapeNames: { circle: 'circle', diamond: 'diamond', square: 'square' },
+  colorNames: { blue: 'violet', red: 'red', yellow: 'yellow' },
+  cell: 'Cell {n}', usedSlot: 'Used: {piece}', showResult: 'Show result',
+  rules: [
+    'Make a line of three: a row, a column or a diagonal.',
+    'The three pieces must share a <b>shape</b> (any colors) or share a <b>color</b> (any shapes):',
+    'Pieces of <b>both</b> players count. Whoever completes a line wins.',
+    'You move first and hold 5 pieces; the AI holds 4. Both hands are open.',
+    'Every deal is checked in advance: with the right moves you can always win.',
+  ],
   };
-  const T = STRINGS[LANG];
   const t = (k, vars) => String(T[k] == null ? k : T[k]).replace(/\{(\w+)\}/g, (_, v) => (vars && vars[v] != null ? vars[v] : ''));
-  document.documentElement.lang = LANG;
   $$('[data-i18n]').forEach((el) => { el.textContent = t(el.getAttribute('data-i18n')); });
   $$('[data-i18n-aria]').forEach((el) => {
     const v = t(el.getAttribute('data-i18n-aria'));
@@ -526,7 +498,7 @@
     let title, text, cls;
     if (result.winner === 'P') {
       stats.wins++; cls = 'win'; title = t('win');
-      text = t('winText', { what: describeLine(result.lines[0]) });
+      text = describeWin(result.lines);
     } else if (result.winner === 'A') {
       stats.losses++; cls = 'lose'; title = t('lose'); text = t('loseText');
     } else {
@@ -575,6 +547,23 @@
     const b = $('#btn-show-result');
     b.textContent = t('showResult');
     b.addEventListener('click', () => showDialog(ui.overlay, $('#btn-again')));
+  }
+
+  /**
+   * "Three circles. Nicely done!" for a single line, and for a move that closed
+   * several lines at once "Two lines at once: three circles and three red pieces."
+   */
+  function describeWin(lines) {
+    if (lines.length < 2) return t('winText', { what: describeLine(lines[0]) });
+    const parts = [];
+    lines.forEach((l) => {
+      const d = t('linePart', { what: describeLine(l) });
+      if (parts.indexOf(d) < 0) parts.push(d); // two lines can share a description
+    });
+    const what = parts.length > 1
+      ? parts.slice(0, -1).join(t('listComma')) + t('listAnd') + parts[parts.length - 1]
+      : parts[0];
+    return t('winTextMulti', { lines: t('lineCount' + Math.min(lines.length, 4)), what: what });
   }
 
   function describeLine(line) {
