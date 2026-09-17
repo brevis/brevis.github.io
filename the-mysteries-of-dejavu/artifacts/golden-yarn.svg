@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">
+<defs>
+<radialGradient id="agy-glow" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#ffe08a" stop-opacity=".55"/><stop offset=".6" stop-color="#ffd27a" stop-opacity=".18"/><stop offset="1" stop-color="#ffd27a" stop-opacity="0"/></radialGradient>
+<radialGradient id="agy-g1" cx=".38" cy=".32" r=".7"><stop offset="0" stop-color="#fff0bc"/><stop offset=".5" stop-color="#e8b545"/><stop offset="1" stop-color="#8f5c12"/></radialGradient>
+<linearGradient id="agy-g2" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff3c8"/><stop offset="1" stop-color="#ffd27a"/></linearGradient>
+<clipPath id="agy-c"><circle cx="52" cy="58" r="35.5"/></clipPath>
+</defs>
+<circle cx="60" cy="60" r="58" fill="url(#agy-glow)"/>
+<ellipse cx="56" cy="98" rx="38" ry="5" fill="#2b1a10" opacity=".25"/>
+<circle cx="52" cy="58" r="36" fill="url(#agy-g1)" stroke="#7a4d10" stroke-width="1.5"/>
+<g clip-path="url(#agy-c)" fill="none" stroke-linecap="round">
+<g stroke="#9c6516" stroke-width="2.3" opacity=".7" transform="rotate(-32 52 58)">
+<ellipse cx="52" cy="58" rx="42" ry="7"/><ellipse cx="52" cy="58" rx="42" ry="16"/><ellipse cx="52" cy="58" rx="42" ry="25"/><ellipse cx="52" cy="58" rx="42" ry="33"/>
+</g>
+<g stroke="#fff3c8" stroke-width="1.2" opacity=".7" transform="rotate(-32 52 58)">
+<ellipse cx="52" cy="56" rx="42" ry="7"/><ellipse cx="52" cy="56" rx="42" ry="16"/><ellipse cx="52" cy="56" rx="42" ry="25"/>
+</g>
+<g stroke="#9c6516" stroke-width="2" opacity=".5" transform="rotate(48 52 58)">
+<ellipse cx="52" cy="58" rx="42" ry="11"/><ellipse cx="52" cy="58" rx="42" ry="27"/>
+</g>
+<g stroke="#fff3c8" stroke-width="1.1" opacity=".55" transform="rotate(48 52 58)">
+<ellipse cx="52" cy="56" rx="42" ry="11"/><ellipse cx="52" cy="56" rx="42" ry="27"/>
+</g>
+</g>
+<path d="M28 38a26 26 0 0 1 20-12" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round" opacity=".55"/>
+<path d="M82 74c10 2 14 10 20 4 4-4 4-10 12-10" stroke="#9c6516" stroke-width="4.2" fill="none" stroke-linecap="round"/>
+<path d="M82 74c10 2 14 10 20 4 4-4 4-10 12-10" stroke="url(#agy-g2)" stroke-width="2" fill="none" stroke-linecap="round"/>
+<path d="M104 66l1.5 3.6 3.6 1.5-3.6 1.5-1.5 3.6-1.5-3.6-3.6-1.5 3.6-1.5z" fill="#fff9e0" opacity="0"/>
+<path d="M22 22l1.5 3.8 3.8 1.5-3.8 1.5-1.5 3.8-1.5-3.8-3.8-1.5 3.8-1.5z" fill="#fff9e0"/>
+<path d="M96 30l1.2 3 3 1.2-3 1.2-1.2 3-1.2-3-3-1.2 3-1.2z" fill="#fff9e0"/>
+</svg>

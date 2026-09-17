@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">
+<defs>
+<radialGradient id="air-glow" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#bfe8ff" stop-opacity=".6"/><stop offset=".6" stop-color="#8fd0ff" stop-opacity=".18"/><stop offset="1" stop-color="#8fd0ff" stop-opacity="0"/></radialGradient>
+<linearGradient id="air-petal" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#3f86d6" stop-opacity=".9"/><stop offset=".55" stop-color="#8ccbf5" stop-opacity=".85"/><stop offset="1" stop-color="#eafaff" stop-opacity=".95"/></linearGradient>
+<linearGradient id="air-inner" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#2e6fc4" stop-opacity=".9"/><stop offset=".6" stop-color="#7fc0f2" stop-opacity=".9"/><stop offset="1" stop-color="#f4fcff"/></linearGradient>
+<radialGradient id="air-core" cx=".45" cy=".4" r=".6"><stop offset="0" stop-color="#ffffff"/><stop offset=".5" stop-color="#9fd6ff"/><stop offset="1" stop-color="#2e6fc4"/></radialGradient>
+<linearGradient id="air-stem" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#2b5f9e"/><stop offset=".5" stop-color="#8fc8f2"/><stop offset="1" stop-color="#2b5f9e"/></linearGradient>
+<linearGradient id="air-leaf" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#d9f3ff"/><stop offset="1" stop-color="#3f86d6"/></linearGradient>
+</defs>
+<circle cx="60" cy="60" r="58" fill="url(#air-glow)"/>
+<ellipse cx="60" cy="106" rx="24" ry="4" fill="#0e2a52" opacity=".25"/>
+<path d="M60 66c-2 12-2 24 0 36" stroke="#0e2a52" stroke-width="5.5" fill="none" stroke-linecap="round" opacity=".18"/>
+<path d="M60 66c-2 12-2 24 0 36" stroke="url(#air-stem)" stroke-width="4" fill="none" stroke-linecap="round"/>
+<path d="M59 82c-8-8-18-6-20 2 8 4 16 2 20-2z" fill="url(#air-leaf)" stroke="#2b5f9e" stroke-width="1.2" stroke-linejoin="round"/>
+<path d="M60 91c8-8 18-6 20 2-8 4-16 2-20-2z" fill="url(#air-leaf)" stroke="#2b5f9e" stroke-width="1.2" stroke-linejoin="round"/>
+<path d="M43 83q8 0 14-1M77 92q-8 0-14-1" stroke="#fff" stroke-width=".9" fill="none" opacity=".6"/>
+<g stroke="#2b5f9e" stroke-width="1.2" stroke-linejoin="round">
+<path d="M60 68C46 68 34 60 32 46c8-2 14 2 18 8-2-8 0-14 6-18 6 4 8 10 6 18 4-6 10-10 18-8-2 14-14 22-20 22z" fill="url(#air-petal)"/>
+<path d="M47 50c-1-9 5-15 13-12v26c-8 0-12-6-13-14z" fill="url(#air-inner)"/>
+<path d="M73 50c1-9-5-15-13-12v26c8 0 12-6 13-14z" fill="url(#air-inner)"/>
+</g>
+<ellipse cx="60" cy="47" rx="7" ry="10" fill="url(#air-core)" stroke="#2b5f9e" stroke-width="1.2"/>
+<path d="M60 40c4 0 5 4 3 7-2 2-5 1-5-2 0-2 2-3 3-2" stroke="#2b5f9e" stroke-width="1" fill="none" stroke-linecap="round" opacity=".7"/>
+<path d="M55 42q1-4 5-4" stroke="#fff" stroke-width="1.4" fill="none" stroke-linecap="round" opacity=".9"/>
+<g stroke="#fff" stroke-width="1.3" stroke-linecap="round" fill="none" opacity=".85">
+<path d="M36 48q3 8 9 13"/><path d="M82 48q-3 8-9 13"/><path d="M46 40q1 6 4 10"/><path d="M74 40q-1 6-4 10"/>
+</g>
+<g stroke="#eafaff" stroke-width=".9" stroke-linecap="round" fill="none" opacity=".9">
+<path d="M34 44l-2-2M38 43l1-3M84 44l2-2M82 42l1-3M44 36l-2-1M76 36l2-1"/>
+</g>
+<g fill="#fff">
+<circle cx="44" cy="58" r="1"/><circle cx="76" cy="56" r="1.1"/><circle cx="52" cy="34" r=".9"/><circle cx="84" cy="70" r=".8"/><circle cx="38" cy="72" r=".8"/><circle cx="68" cy="62" r=".8"/>
+</g>
+<path d="M24 26l1.5 3.8 3.8 1.5-3.8 1.5-1.5 3.8-1.5-3.8-3.8-1.5 3.8-1.5z" fill="#f4fcff"/>
+<path d="M98 38l1.2 3 3 1.2-3 1.2-1.2 3-1.2-3-3-1.2 3-1.2z" fill="#f4fcff"/>
+<path d="M92 92l1 2.5 2.5 1-2.5 1-1 2.5-1-2.5-2.5-1 2.5-1z" fill="#f4fcff" opacity=".8"/>
+</svg>

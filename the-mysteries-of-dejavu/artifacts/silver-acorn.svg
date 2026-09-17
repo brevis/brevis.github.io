@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">
+<defs>
+<radialGradient id="asa-glow" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#e6f2ff" stop-opacity=".55"/><stop offset=".6" stop-color="#cfe2f7" stop-opacity=".18"/><stop offset="1" stop-color="#cfe2f7" stop-opacity="0"/></radialGradient>
+<radialGradient id="asa-body" cx=".35" cy=".3" r=".75"><stop offset="0" stop-color="#ffffff"/><stop offset=".45" stop-color="#c9d3dc"/><stop offset="1" stop-color="#5d6b78"/></radialGradient>
+<radialGradient id="asa-cap" cx=".4" cy=".3" r=".7"><stop offset="0" stop-color="#f4f7fa"/><stop offset=".5" stop-color="#9aa8b5"/><stop offset="1" stop-color="#3f4a55"/></radialGradient>
+</defs>
+<circle cx="60" cy="60" r="58" fill="url(#asa-glow)"/>
+<ellipse cx="60" cy="104" rx="24" ry="4" fill="#2b1a10" opacity=".25"/>
+<path d="M60 42c-17 0-24 10-24 24 0 16 12 32 24 36 12-4 24-20 24-36 0-14-7-24-24-24z" fill="url(#asa-body)" stroke="#3f4a55" stroke-width="1.5"/>
+<path d="M46 56c4 14 8 22 14 30" stroke="#fff" stroke-width="2.5" fill="none" stroke-linecap="round" opacity=".5"/>
+<path d="M34 46c0-10 12-16 26-16s26 6 26 16c0 6-10 10-26 10S34 52 34 46z" fill="url(#asa-cap)" stroke="#3f4a55" stroke-width="1.5"/>
+<g fill="none" stroke="#3f4a55" stroke-width="1.2" opacity=".6">
+<path d="M40 40q6-4 12 0t12 0 12 0 6 2"/><path d="M38 47q6-4 12 0t12 0 12 0 8 0"/><path d="M44 52q6-4 12 0t12 0 8 -1"/>
+</g>
+<path d="M60 30c0-6 3-10 8-12" stroke="#5a3a24" stroke-width="3" fill="none" stroke-linecap="round"/>
+<path d="M22 28l1.5 3.8 3.8 1.5-3.8 1.5-1.5 3.8-1.5-3.8-3.8-1.5 3.8-1.5z" fill="#fff9e0"/>
+<path d="M98 72l1.2 3 3 1.2-3 1.2-1.2 3-1.2-3-3-1.2 3-1.2z" fill="#fff9e0"/>
+</svg>

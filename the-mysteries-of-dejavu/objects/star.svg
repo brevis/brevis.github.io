@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 96">
+<defs>
+<linearGradient id="st-g1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff2c4"/><stop offset=".5" stop-color="#f0c24e"/><stop offset="1" stop-color="#b8781a"/></linearGradient>
+<radialGradient id="st-g2" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#ffe9a0" stop-opacity=".8"/><stop offset="1" stop-color="#ffe9a0" stop-opacity="0"/></radialGradient>
+</defs>
+<path d="M50 4l11.2 30.6 32.5 1.2-25.6 20.1 8.9 31.3L50 69 23 87.2l8.9-31.3L6.3 35.8l32.5-1.2z" fill="url(#st-g1)" stroke="#8a5610" stroke-width="1.5" stroke-linejoin="round"/>
+<path d="M50 4l11.2 30.6L50 50zM93.7 35.8L68.1 55.9 50 50zM77 87.2L50 69V50zM23 87.2l8.9-31.3L50 50zM6.3 35.8l32.5-1.2L50 50z" fill="#8a5610" opacity=".22"/>
+<path d="M50 4L38.8 34.6 50 50zM93.7 35.8L61.2 34.6 50 50z" fill="#fff" opacity=".28"/>
+<path d="M50 10l6 17" stroke="#fff8dc" stroke-width="2" stroke-linecap="round" opacity=".8"/>
+<circle cx="50" cy="50" r="3.5" fill="#fff6d5" opacity=".9"/>
+</svg>

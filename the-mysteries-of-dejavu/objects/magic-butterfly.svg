@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 86">
+<defs>
+<linearGradient id="mb-g1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffd3ec"/><stop offset=".5" stop-color="#e98bd0"/><stop offset="1" stop-color="#8a5cd6"/></linearGradient>
+<linearGradient id="mb-g2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f6c6ee"/><stop offset="1" stop-color="#7a52c9"/></linearGradient>
+<radialGradient id="mb-g3" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#fff" stop-opacity=".9"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
+<linearGradient id="mb-g4" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6a4a8c"/><stop offset="1" stop-color="#2e1e46"/></linearGradient>
+<g id="mb-w">
+<path d="M48 41C40 10 10 2 5 22 3 38 28 48 48 44Z" fill="url(#mb-g1)" stroke="#5a3a9a" stroke-width="1.3" stroke-linejoin="round"/>
+<path d="M48 47C30 50 8 58 13 74 18 86 42 72 48 50Z" fill="url(#mb-g2)" stroke="#5a3a9a" stroke-width="1.3" stroke-linejoin="round"/>
+<path d="M44 42C36 20 16 10 9 22" stroke="#fff" stroke-width="2" fill="none" opacity=".55" stroke-linecap="round"/>
+<circle cx="22" cy="26" r="6" fill="#fff" opacity=".85"/><circle cx="22" cy="26" r="3" fill="#b389f5"/>
+<circle cx="25" cy="64" r="4" fill="#fff" opacity=".8"/>
+<circle cx="14" cy="36" r="2.2" fill="#fff" opacity=".7"/>
+</g>
+</defs>
+<use href="#mb-w"/>
+<use href="#mb-w" transform="matrix(-1 0 0 1 100 0)"/>
+<ellipse cx="50" cy="48" rx="4.2" ry="19" fill="url(#mb-g4)"/>
+<circle cx="50" cy="27" r="5" fill="#6a4a8c" stroke="#2e1e46" stroke-width="1"/>
+<circle cx="48.5" cy="26" r="1.5" fill="#fff" opacity=".8"/>
+<path d="M47 23C42 16 36 12 34 8M53 23c5-7 11-11 13-15" stroke="#2e1e46" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+<circle cx="34" cy="7.5" r="2" fill="#f2a9d8"/><circle cx="66" cy="7.5" r="2" fill="#f2a9d8"/>
+<path d="M88 12l1 2.5 2.5 1-2.5 1-1 2.5-1-2.5-2.5-1 2.5-1z" fill="#fff9ff"/>
+<path d="M9 8l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z" fill="#fff9ff"/>
+</svg>

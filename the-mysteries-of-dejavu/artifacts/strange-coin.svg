@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">
+<defs>
+<radialGradient id="asc-glow" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#ffe08a" stop-opacity=".55"/><stop offset=".6" stop-color="#ffd27a" stop-opacity=".18"/><stop offset="1" stop-color="#ffd27a" stop-opacity="0"/></radialGradient>
+<radialGradient id="asc-g1" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#fff0b8"/><stop offset=".55" stop-color="#e6b445"/><stop offset="1" stop-color="#8f5c12"/></radialGradient>
+<linearGradient id="asc-g2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9c6516"/><stop offset="1" stop-color="#f2d27a"/></linearGradient>
+<linearGradient id="asc-g3" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff5d2"/><stop offset="1" stop-color="#c98a2a"/></linearGradient>
+<path id="asc-face" d="M60 40c-3-4-8-6-13-4-6 2-10 8-9 16 1 5 3 8 5 11l-2 5c-2 3-1 6 2 7 3 0 5-2 7-4 3 4 9 4 12 0l-2-4c3-3 5-6 5-11 1-7-2-13-5-16Z"/>
+<g id="asc-prof">
+<path d="M42 40c5-6 14-5 16 3l2 9c2 2 4 4 3 6l-3 2c2 2 2 4 0 5 0 2-1 4-3 5-2 2-4 2-4 4v6H37c0-10-3-22 0-32 1-4 3-6 5-8Z" fill="#a86f1e"/>
+<path d="M50 43c4 0 7 3 8 8l2 3c2 2 4 4 3 6l-3 2c2 2 2 4 0 5 0 2-1 4-3 5-2 2-4 2-4 4v4h-8V52c0-5 2-9 5-9Z" fill="url(#asc-g3)" stroke="#8a5610" stroke-width=".7"/>
+<path d="M44 44c2-5 8-8 14-6" stroke="#fff3c8" stroke-width="1.2" fill="none" stroke-linecap="round" opacity=".8"/>
+<path d="M40 60c0 8 0 14 2 20" stroke="#fff3c8" stroke-width="1" fill="none" stroke-linecap="round" opacity=".5"/>
+<path d="M45 38l2-5 3 4 3-4 2 5" fill="#f6d98a" stroke="#8a5610" stroke-width=".7" stroke-linejoin="round"/>
+<circle cx="56" cy="53" r="1" fill="#8a5610"/>
+</g>
+</defs>
+<circle cx="60" cy="60" r="58" fill="url(#asc-glow)"/>
+<ellipse cx="60" cy="104" rx="40" ry="5" fill="#2b1a10" opacity=".25"/>
+<circle cx="60" cy="60" r="44" fill="url(#asc-g1)" stroke="#7a4d10" stroke-width="1.5"/>
+<circle cx="60" cy="60" r="40" fill="none" stroke="#fff3c8" stroke-width="1.2" stroke-dasharray="1.5 2.7" opacity=".9"/>
+<circle cx="60" cy="60" r="34" fill="none" stroke="url(#asc-g2)" stroke-width="2.2"/>
+<circle cx="60" cy="60" r="32" fill="none" stroke="#fff3c8" stroke-width="1" opacity=".7"/>
+
+<use href="#asc-prof" transform="translate(-12 0)"/>
+<use href="#asc-prof" transform="matrix(-1 0 0 1 132 0)"/>
+<path d="M60 32v56" stroke="#8a5610" stroke-width="1.2" opacity=".5" stroke-dasharray="2 2"/>
+<path d="M52 88h16" stroke="#8a5610" stroke-width="1.6" stroke-linecap="round" opacity=".6"/>
+<path d="M55 84v3M60 82v5M65 84v3" stroke="#8a5610" stroke-width="1.6" stroke-linecap="round" opacity=".6"/>
+<path d="M26 44a36 36 0 0 1 20-24" stroke="#fff8dc" stroke-width="3" fill="none" stroke-linecap="round" opacity=".85"/>
+<path d="M96 22l1.5 3.8 3.8 1.5-3.8 1.5-1.5 3.8-1.5-3.8-3.8-1.5 3.8-1.5z" fill="#fff9e0"/>
+<path d="M18 86l1.2 3 3 1.2-3 1.2-1.2 3-1.2-3-3-1.2 3-1.2z" fill="#fff9e0"/>
+</svg>

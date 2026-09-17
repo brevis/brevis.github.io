@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">
+<defs>
+<radialGradient id="arh-glow" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#9fd8ff" stop-opacity=".6"/><stop offset=".6" stop-color="#6fc0ff" stop-opacity=".18"/><stop offset="1" stop-color="#6fc0ff" stop-opacity="0"/></radialGradient>
+<linearGradient id="arh-brass" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#7a4d10"/><stop offset=".3" stop-color="#ffe6a8"/><stop offset=".6" stop-color="#c98a2a"/><stop offset="1" stop-color="#7a4d10"/></linearGradient>
+<linearGradient id="arh-cap" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe6a8"/><stop offset=".5" stop-color="#c98a2a"/><stop offset="1" stop-color="#7a4d10"/></linearGradient>
+<linearGradient id="arh-glass" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#d8f1ff" stop-opacity=".5"/><stop offset=".5" stop-color="#9fd0f7" stop-opacity=".25"/><stop offset="1" stop-color="#4f8fd6" stop-opacity=".4"/></linearGradient>
+<radialGradient id="arh-sand" cx=".5" cy=".3" r=".8"><stop offset="0" stop-color="#eaf8ff"/><stop offset=".4" stop-color="#7fd2ff"/><stop offset="1" stop-color="#2a6fd6"/></radialGradient>
+<linearGradient id="arh-stream" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset=".6" stop-color="#8fdcff"/><stop offset="1" stop-color="#2a6fd6" stop-opacity=".2"/></linearGradient>
+</defs>
+<circle cx="60" cy="60" r="58" fill="url(#arh-glow)"/>
+<ellipse cx="60" cy="106" rx="30" ry="4.5" fill="#2b1a10" opacity=".25"/>
+<rect x="38" y="16" width="44" height="8" rx="2.5" fill="url(#arh-cap)" stroke="#7a4d10" stroke-width="1.5"/>
+<rect x="38" y="96" width="44" height="8" rx="2.5" fill="url(#arh-cap)" stroke="#7a4d10" stroke-width="1.5"/>
+<path d="M40 24v72M80 24v72" stroke="url(#arh-brass)" stroke-width="4" stroke-linecap="round"/>
+<path d="M40 24v72M80 24v72" stroke="#7a4d10" stroke-width="4.8" stroke-linecap="round" fill="none" opacity=".18"/>
+<path d="M44 24h32c0 16-6 26-12 32 0 2 0 6 0 8 6 6 12 16 12 32H44c0-16 6-26 12-32v-8C50 50 44 40 44 24z" fill="url(#arh-glass)" stroke="#7a4d10" stroke-width="1.5" stroke-linejoin="round"/>
+<path d="M46 27c1 12 5 20 10 26v14c-5 6-9 14-10 26" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" opacity=".45"/>
+<path d="M46 25h28c0 12-5 20-10 26h-8C51 45 46 37 46 25z" fill="url(#arh-sand)"/>
+<path d="M47 27h26" stroke="#eaf8ff" stroke-width="1.5" stroke-linecap="round" opacity=".7"/>
+<path d="M60 92V54" stroke="#2a6fd6" stroke-width="4" stroke-linecap="round" fill="none" opacity=".35"/>
+<path d="M60 92V54" stroke="url(#arh-stream)" stroke-width="2.4" stroke-linecap="round" fill="none"/>
+<path d="M60 90V56" stroke="#fff" stroke-width=".9" stroke-linecap="round" fill="none" opacity=".8"/>
+<ellipse cx="60" cy="93" rx="9" ry="2.2" fill="#2a6fd6" opacity=".55"/>
+<ellipse cx="60" cy="92.5" rx="7" ry="1.4" fill="#7fd2ff" opacity=".6"/>
+<g fill="#eaf8ff">
+<circle cx="56" cy="72" r="1.1"/><circle cx="64" cy="78" r=".9"/><circle cx="57" cy="84" r="1"/><circle cx="64" cy="66" r=".8"/><circle cx="55" cy="62" r=".7"/><circle cx="63" cy="88" r=".7"/>
+</g>
+<path d="M56 60l4-5 4 5" stroke="#fff" stroke-width="1.3" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity=".9"/>
+<path d="M57 68l3-4 3 4" stroke="#fff" stroke-width="1" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity=".6"/>
+<path d="M22 32l1.5 3.8 3.8 1.5-3.8 1.5-1.5 3.8-1.5-3.8-3.8-1.5 3.8-1.5z" fill="#fff9e0"/>
+<path d="M98 74l1.2 3 3 1.2-3 1.2-1.2 3-1.2-3-3-1.2 3-1.2z" fill="#fff9e0"/>
+</svg>

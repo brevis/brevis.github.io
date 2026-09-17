@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 84 92">
+<defs>
+<linearGradient id="cm-g1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff8dc"/><stop offset=".5" stop-color="#f2d27a"/><stop offset="1" stop-color="#c48a25"/></linearGradient>
+<radialGradient id="cm-g2" cx=".45" cy=".5" r=".5"><stop offset="0" stop-color="#fff0b8" stop-opacity=".7"/><stop offset="1" stop-color="#fff0b8" stop-opacity="0"/></radialGradient>
+</defs>
+<path d="M44 6A40 40 0 0 0 44 86 44 44 0 0 1 44 6Z" fill="url(#cm-g1)" stroke="#8a5610" stroke-width="1.5" stroke-linejoin="round"/>
+<path d="M38 12A34 34 0 0 0 10 46" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round" opacity=".75"/>
+<path d="M28 66a34 34 0 0 0 12 12" stroke="#8a5610" stroke-width="1.6" fill="none" stroke-linecap="round" opacity=".35"/>
+<path d="M16 40q3 2 6 0" stroke="#8a5610" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+<circle cx="14" cy="49" r="3" fill="#f2a9d8" opacity=".6"/>
+<path d="M66 20l1.5 3.6 3.6 1.5-3.6 1.5-1.5 3.6-1.5-3.6-3.6-1.5 3.6-1.5z" fill="#fff6d5"/>
+<path d="M72 44l1 2.4 2.4 1-2.4 1-1 2.4-1-2.4-2.4-1 2.4-1z" fill="#fff6d5"/>
+</svg>

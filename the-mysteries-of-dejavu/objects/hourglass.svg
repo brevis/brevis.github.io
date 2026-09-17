@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 74 104">
+<defs>
+<linearGradient id="hg-g1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#a06a3e"/><stop offset=".5" stop-color="#6b4224"/><stop offset="1" stop-color="#3d2617"/></linearGradient>
+<linearGradient id="hg-g2" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#e3f1ff" stop-opacity=".85"/><stop offset=".5" stop-color="#b9d6f2" stop-opacity=".35"/><stop offset="1" stop-color="#5f86b8" stop-opacity=".7"/></linearGradient>
+<linearGradient id="hg-g3" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fbe6a8"/><stop offset="1" stop-color="#d9a441"/></linearGradient>
+<linearGradient id="hg-g4" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fbeec2"/><stop offset="1" stop-color="#c98a2a"/></linearGradient>
+<clipPath id="hg-c"><path d="M18 16c0 20 12 30 19 36 7-6 19-16 19-36Z"/></clipPath>
+</defs>
+<ellipse cx="37" cy="99" rx="30" ry="4.5" fill="#2b1a10" opacity=".25"/>
+<rect x="10" y="12" width="6" height="80" rx="2" fill="url(#hg-g4)" stroke="#7a4d10" stroke-width="1"/>
+<rect x="58" y="12" width="6" height="80" rx="2" fill="url(#hg-g4)" stroke="#7a4d10" stroke-width="1"/>
+<path d="M18 16c0 20 12 30 19 36 7-6 19-16 19-36Z" fill="#7aa0d0" opacity=".3"/>
+<path d="M18 88c0-20 12-30 19-36 7 6 19 16 19 36Z" fill="#7aa0d0" opacity=".3"/>
+<g clip-path="url(#hg-c)"><path d="M14 36c8-4 38-4 46 0v20H14Z" fill="url(#hg-g3)"/><path d="M16 36c8-3 36-3 44 0" stroke="#fff3c8" stroke-width="1.2" fill="none" opacity=".8"/></g>
+<path d="M37 52v20" stroke="#e9c35a" stroke-width="1.4" stroke-linecap="round"/>
+<path d="M22 86c2-10 8-16 15-18 7 2 13 8 15 18Z" fill="url(#hg-g3)"/>
+<path d="M18 16c0 20 12 30 19 36 7-6 19-16 19-36Z" fill="url(#hg-g2)" stroke="#3e5f8f" stroke-width="1.3" stroke-linejoin="round"/>
+<path d="M18 88c0-20 12-30 19-36 7 6 19 16 19 36Z" fill="url(#hg-g2)" stroke="#3e5f8f" stroke-width="1.3" stroke-linejoin="round"/>
+<path d="M22 20c1 12 6 20 11 26M22 84c1-12 6-20 11-26" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" opacity=".8"/>
+<rect x="6" y="4" width="62" height="12" rx="4" fill="url(#hg-g1)" stroke="#2b1a10" stroke-width="1.2"/>
+<rect x="6" y="88" width="62" height="12" rx="4" fill="url(#hg-g1)" stroke="#2b1a10" stroke-width="1.2"/>
+<path d="M10 7h54M10 91h54" stroke="#c99a6a" stroke-width="1.2" opacity=".6"/>
+</svg>

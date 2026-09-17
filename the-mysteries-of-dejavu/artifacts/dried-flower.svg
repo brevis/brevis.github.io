@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">
+<defs>
+<radialGradient id="adf-glow" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#ffd9e6" stop-opacity=".55"/><stop offset=".6" stop-color="#f2a9d8" stop-opacity=".16"/><stop offset="1" stop-color="#f2a9d8" stop-opacity="0"/></radialGradient>
+<linearGradient id="adf-g1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e9c3b4"/><stop offset=".6" stop-color="#c98a86"/><stop offset="1" stop-color="#8a4f52"/></linearGradient>
+<linearGradient id="adf-g2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fbf1d8"/><stop offset="1" stop-color="#e2cb9c"/></linearGradient>
+<linearGradient id="adf-g3" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#c2b27a"/><stop offset="1" stop-color="#7a7a44"/></linearGradient>
+<radialGradient id="adf-g4" cx=".4" cy=".35" r=".65"><stop offset="0" stop-color="#f6e2a0"/><stop offset="1" stop-color="#b08a3a"/></radialGradient>
+<path id="adf-p" d="M60 48C54 40 50 28 55 20c3-5 9-5 12 0 4 8-1 20-7 28Z"/>
+</defs>
+<circle cx="60" cy="60" r="58" fill="url(#adf-glow)"/>
+<path d="M22 18h76v84H22z" fill="#2b1a10" opacity=".18" transform="translate(3 4)"/>
+<path d="M22 18h76v84H22z" fill="url(#adf-g2)" stroke="#a88a55" stroke-width="1.2"/>
+<path d="M28 28h20M28 34h14M28 92h30M28 98h20M70 92h22" stroke="#8a5e3c" stroke-width="1.2" stroke-linecap="round" opacity=".35"/>
+<path d="M60 56c-1 12-2 24-6 38" stroke="#6f7a3a" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+<path d="M57 74c-8-6-16-4-20 4 8 4 16 2 20-4Z" fill="url(#adf-g3)" stroke="#5a6430" stroke-width="1"/>
+<path d="M56 74c-6 0-10 1-14 3" stroke="#5a6430" stroke-width=".8" fill="none" opacity=".6"/>
+<path d="M56 84c6-6 14-6 18 0-6 4-12 4-18 0Z" fill="url(#adf-g3)" stroke="#5a6430" stroke-width="1"/>
+<g stroke="#8c4650" stroke-width="1.1" stroke-linejoin="round">
+<use href="#adf-p" fill="url(#adf-g1)"/>
+<use href="#adf-p" fill="url(#adf-g1)" transform="rotate(72 60 48)"/>
+<use href="#adf-p" fill="url(#adf-g1)" transform="rotate(144 60 48)"/>
+<use href="#adf-p" fill="url(#adf-g1)" transform="rotate(216 60 48)"/>
+<use href="#adf-p" fill="url(#adf-g1)" transform="rotate(288 60 48)"/>
+</g>
+<path d="M60 44V22M60 44l22-8M60 44l14 20M60 44L46 64M60 44L38 36" stroke="#8c4650" stroke-width=".7" opacity=".5"/>
+<circle cx="60" cy="48" r="7" fill="url(#adf-g4)" stroke="#8a6a2a" stroke-width="1"/>
+<circle cx="58" cy="46" r="1.5" fill="#fff" opacity=".5"/>
+<path d="M55 30c2 4 2 8 1 12M66 30c-1 5 0 9 2 13M48 46c4 1 7 3 9 6M72 44c-4 1-7 3-9 6" stroke="#8a4f52" stroke-width=".8" fill="none" opacity=".5"/>
+<path d="M57 22c1-3 5-3 6 0" stroke="#fff" stroke-width="1.6" fill="none" stroke-linecap="round" opacity=".6"/>
+<path d="M96 22l1.5 3.8 3.8 1.5-3.8 1.5-1.5 3.8-1.5-3.8-3.8-1.5 3.8-1.5z" fill="#fff9f4"/>
+<path d="M18 74l1.2 3 3 1.2-3 1.2-1.2 3-1.2-3-3-1.2 3-1.2z" fill="#fff9f4"/>
+</svg>
