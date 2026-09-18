@@ -52,13 +52,18 @@ button { font-family: inherit; }
 .screen.is-settled, .overlay.is-settled { animation: none; }
 
 /* ---------- logo ---------- */
-.logo-svg { display: block; width: 100%; height: auto; overflow: visible; }
+/* The logo is two stacked <text> layers. Painting them before 'Luckiest Guy' has
+   loaded lets the layers disagree (one in the fallback face, one in the real one),
+   so nothing is drawn until the font is resolved. See revealWhenFontsReady in app.js. */
+.logo-svg { display: block; width: 100%; height: auto; overflow: visible; visibility: hidden; }
+html.fonts-ready .logo-svg { visibility: visible; }
 .logo-text { font-family: var(--font-logo); font-size: 112px; letter-spacing: 2px; }
 .logo-text--lc { font-size: 88px; }
 .logo-shadow text { fill: #1f2b55; opacity: .85; }
 .logo-svg text, .logo-svg tspan { stroke: #1f2b55; stroke-width: 6px; stroke-linejoin: round; paint-order: stroke fill; }
 .logo-shadow text, .logo-shadow tspan { fill: #1f2b55; stroke: #1f2b55; stroke-width: 6px; }
-.logo--big { width: min(78vw, 340px); margin-top: 10vh; filter: drop-shadow(0 10px 16px rgba(20, 30, 70, .28)); animation: logo-in .7s cubic-bezier(.2,1.4,.4,1) backwards; }
+.logo--big { width: min(78vw, 340px); margin-top: 10vh; filter: drop-shadow(0 10px 16px rgba(20, 30, 70, .28)); }
+html.fonts-ready .logo--big { animation: logo-in .7s cubic-bezier(.2,1.4,.4,1) backwards; }
 @keyframes logo-in { from { transform: scale(.6) rotate(-6deg); opacity: 0; } to { transform: none; opacity: 1; } }
 .logo--small { width: 140px; }
 .logo--small .logo-svg text, .logo--small .logo-svg tspan { stroke-width: 7px; }
@@ -187,6 +192,7 @@ button { font-family: inherit; }
 
 /* ---------- drag ghost ---------- */
 .drag-layer { position: fixed; inset: 0; pointer-events: none; z-index: 20; }
+.fx-layer { position: fixed; inset: 0; pointer-events: none; z-index: 25; } /* confetti: above the board, under the dialog */
 .drag-ghost { position: absolute; width: 72px; height: 72px; transform: translate(-50%, -50%) scale(1.15); }
 
 /* ---------- overlays ---------- */
@@ -227,20 +233,42 @@ button { font-family: inherit; }
 /* one uniform height for the icon and the two text buttons */
 .dialog-actions .btn { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 0 18px; }
 /* Home button: first item of the action row, set slightly apart from the deal buttons.
-   Same circle as the top-bar icon buttons, in the dialog's own (dark on light) palette. */
+   Same circle as the top-bar icon buttons, but built exactly like the dialog's text buttons
+   (solid fill, 3D edge, same press) so all three read as equally available. */
 .dialog-home {
-  flex: 0 0 auto; width: 44px; height: 44px; border-radius: 50%;
-  border: 2px solid rgba(34, 50, 96, .16); background: rgba(34, 50, 96, .07); color: var(--ink);
+  flex: 0 0 auto; width: 44px; height: 44px; border-radius: 50%; border: 0;
   display: grid; place-items: center; cursor: pointer;
   margin-right: 8px; /* on top of the row's 10px gap */
-  transition: background .15s, transform .12s;
+  transition: transform .12s ease, box-shadow .12s ease, filter .15s ease;
 }
 .dialog-home svg { width: 22px; height: 22px; }
-.dialog-home:hover { background: rgba(34, 50, 96, .13); }
-.dialog-home:active { transform: scale(.92); background: rgba(34, 50, 96, .16); }
 .dialog-home:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
-.dialog .btn-ghost { background: rgba(34,50,96,.08); color: var(--ink); border-color: rgba(34,50,96,.15); box-shadow: none; }
 .dialog .btn { font-size: 16px; padding: 0 18px; }
+/* Secondary dialog buttons: the game's blue, as solid and as raised as the yellow primary.
+   A pale flat fill here used to read as "disabled" next to the primary. */
+.dialog .btn-ghost, .dialog-home {
+  border: 0; background: linear-gradient(180deg, #86a9ee, #5a7fd4); color: #fff;
+  box-shadow: 0 4px 0 #3a5aa6, 0 8px 16px rgba(20,30,70,.22);
+  text-shadow: 0 1px 0 rgba(20,30,70,.25);
+}
+.dialog .btn-ghost:hover, .dialog-home:hover { background: linear-gradient(180deg, #92b3f2, #6489da); }
+.dialog .btn-ghost:active, .dialog-home:active {
+  transform: translateY(2px) scale(.98);
+  box-shadow: 0 2px 0 #3a5aa6, 0 5px 10px rgba(20,30,70,.22);
+}
+/* the primary keeps its own colours but shares the exact same lift and press */
+.dialog .btn-primary { box-shadow: 0 4px 0 #c9782a, 0 8px 16px rgba(20,30,70,.22); }
+.dialog .btn-primary:active { box-shadow: 0 2px 0 #c9782a, 0 5px 10px rgba(20,30,70,.22); }
+/* Schematic board under the title: the winning line(s) at a glance */
+.dialog-board { display: flex; justify-content: center; margin: 2px 0 10px; }
+.dialog-board[hidden] { display: none; }
+.mini-board { width: 84px; height: 84px; display: block; overflow: visible; }
+.mb-cell { fill: rgba(34, 50, 96, .10); }
+.mini-board--win .mb-cell.is-win { fill: rgba(255, 211, 92, .6); stroke: #f4a24b; stroke-width: 2; }
+.mini-board--lose .mb-cell.is-win { fill: rgba(224, 43, 58, .16); stroke: #e02b3a; stroke-width: 2; }
+.mb-line { stroke-width: 6; stroke-linecap: round; fill: none; opacity: .75; }
+.mini-board--win .mb-line { stroke: #f4a24b; }
+.mini-board--lose .mb-line { stroke: #e02b3a; }
 
 .dialog--rules { text-align: left; }
 
@@ -278,7 +306,8 @@ button { font-family: inherit; }
   .dialog { padding: 24px 14px 18px; }
   .dialog-actions { gap: 8px; flex-wrap: nowrap; }
   .dialog-actions .btn { font-size: 14px; padding: 0 10px; min-width: 0; }
-  .dialog-home { width: 42px; height: 42px; margin-right: 4px; }
+  .dialog-home { margin-right: 4px; }
+  .mini-board { width: 72px; height: 72px; }
 }
 @media (max-width: 340px) {
   .logo--small { width: 104px; }

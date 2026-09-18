@@ -1,8 +1,8 @@
 /* TriX service worker: precaches the whole game so it works offline. Bump CACHE together with the ?v= asset version in index.html. */
-const CACHE = 'trix-20260909a';
+const CACHE = 'trix-20260917a';
 const ASSETS = [
   './', './index.html', './manifest.webmanifest',
-  './css/fonts.css?v=20260909a', './css/style.css?v=20260909a', './js/engine.js?v=20260909a', './js/app.js?v=20260909a',
+  './css/fonts.css?v=20260917a', './css/style.css?v=20260917a', './js/engine.js?v=20260917a', './js/app.js?v=20260917a',
   './icons/icon-192.png', './icons/icon-512.png',
   './fonts/fredoka-400-latin-ext.woff2',
   './fonts/fredoka-400-latin.woff2',

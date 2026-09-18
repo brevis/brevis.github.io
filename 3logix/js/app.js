@@ -6,6 +6,20 @@
   const $$ = (s) => Array.prototype.slice.call(document.querySelectorAll(s));
 
   // ---------------------------------------------------------------------------
+  // Reveal the logo only once the display font is available, so its two stacked
+  // text layers can never be painted in two different faces (see .logo-svg in CSS).
+  // ---------------------------------------------------------------------------
+  (function revealWhenFontsReady() {
+    const show = () => document.documentElement.classList.add('fonts-ready');
+    if (!document.fonts || !document.fonts.load) { show(); return; }
+    const loaded = Promise.all([
+      document.fonts.load('112px "Luckiest Guy"'),
+      document.fonts.load('700 16px "Fredoka"'),
+    ]).catch(() => {});
+    Promise.race([loaded, new Promise((r) => setTimeout(r, 2500))]).then(show);
+  })();
+
+  // ---------------------------------------------------------------------------
   // i18n
   // ---------------------------------------------------------------------------
   const params = new URLSearchParams(location.search);
@@ -70,7 +84,8 @@
   // Piece rendering
   // ---------------------------------------------------------------------------
   const STROKE = { blue: '#2a1f6b', red: '#6b1a22', yellow: '#6b4a12' };
-  function pieceSVG(type) {
+  /** The shadow, body and gloss of a piece, for use inside any 100x100 SVG viewport. */
+  function pieceBody(type) {
     const shape = E.SHAPES[E.shapeOf(type)];
     const color = E.COLORS[E.colorOf(type)];
     let body, gloss;
@@ -84,10 +99,38 @@
       body = '<rect x="13" y="13" width="74" height="74" rx="15"/>';
       gloss = '<ellipse cx="40" cy="30" rx="20" ry="9"/>';
     }
-    return '<svg class="piece piece--' + shape + ' piece--' + color + '" viewBox="0 0 100 100" data-type="' + type + '" role="img" aria-label="' + pieceName(type) + '">' +
-      '<g fill="rgba(20,30,70,.32)" transform="translate(0,4)">' + body + '</g>' +
+    return '<g fill="rgba(20,30,70,.32)" transform="translate(0,4)">' + body + '</g>' +
       '<g fill="url(#g-' + color + ')" stroke="' + STROKE[color] + '" stroke-width="5" stroke-linejoin="round">' + body + '</g>' +
-      '<g fill="url(#g-gloss)">' + gloss + '</g></svg>';
+      '<g fill="url(#g-gloss)">' + gloss + '</g>';
+  }
+  function pieceSVG(type) {
+    const shape = E.SHAPES[E.shapeOf(type)];
+    const color = E.COLORS[E.colorOf(type)];
+    return '<svg class="piece piece--' + shape + ' piece--' + color + '" viewBox="0 0 100 100" data-type="' + type + '" role="img" aria-label="' + pieceName(type) + '">' +
+      pieceBody(type) + '</svg>';
+  }
+  /**
+   * Schematic 3x3 board for the result dialog: every cell muted, the winning
+   * cells lit and showing their pieces, and one stroke through each winning line.
+   */
+  function miniBoardSVG(board, lines, cls) {
+    const CELL = 28, GAP = 4, PAD = 4;
+    const pos = (i) => PAD + i * (CELL + GAP);
+    const cx = (c) => pos(c % 3) + CELL / 2, cy = (c) => pos((c / 3) | 0) + CELL / 2;
+    const winCells = new Set();
+    lines.forEach((l) => l.forEach((c) => winCells.add(c)));
+    let cells = '', strokes = '', pieces = '';
+    for (let c = 0; c < 9; c++) {
+      const x = pos(c % 3), y = pos((c / 3) | 0), win = winCells.has(c);
+      cells += '<rect class="mb-cell' + (win ? ' is-win' : '') + '" x="' + x + '" y="' + y + '" width="' + CELL + '" height="' + CELL + '" rx="7"/>';
+      if (win && board[c] >= 0) {
+        pieces += '<svg x="' + (x + 3) + '" y="' + (y + 3) + '" width="' + (CELL - 6) + '" height="' + (CELL - 6) + '" viewBox="0 0 100 100">' + pieceBody(board[c]) + '</svg>';
+      }
+    }
+    lines.forEach((l) => {
+      strokes += '<line class="mb-line" x1="' + cx(l[0]) + '" y1="' + cy(l[0]) + '" x2="' + cx(l[2]) + '" y2="' + cy(l[2]) + '"/>';
+    });
+    return '<svg class="mini-board mini-board--' + cls + '" viewBox="0 0 100 100" aria-hidden="true">' + cells + strokes + pieces + '</svg>';
   }
   function pieceName(type) {
     return T.colorNames[E.COLORS[E.colorOf(type)]] + ' ' + T.shapeNames[E.SHAPES[E.shapeOf(type)]];
@@ -177,6 +220,84 @@
     start();
     return { setLite(v) { liteMode = !!v; resize(); }, start, stop };
   }
+
+  // ---------------------------------------------------------------------------
+  // Win confetti: one fixed canvas, a single burst from the winning cells, 30 fps,
+  // plain fillRect/arc with no shadows or blur. A few dozen particles even in lite mode.
+  // ---------------------------------------------------------------------------
+  function createConfetti() {
+    const PALETTE = ['#ffd35c', '#f4a24b', '#ff8a80', '#e02b3a', '#9d8bff', '#5a3ad0', '#ffffff'];
+    let canvas = null, ctx = null, raf = 0, parts = [], t0 = 0, last = 0, life = 0, dpr = 1, onDone = null;
+    function ensure() {
+      if (canvas) return;
+      canvas = document.createElement('canvas');
+      canvas.className = 'fx-layer';
+      canvas.hidden = true;
+      document.body.appendChild(canvas);
+      ctx = canvas.getContext('2d');
+    }
+    function frame(now) {
+      const age = now - t0;
+      if (age > life) { stop(); return; }
+      raf = requestAnimationFrame(frame);
+      if (now - last < 33) return;
+      const dt = Math.min(0.05, (now - last) / 1000); last = now;
+      const W = canvas.width, H = canvas.height;
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.clearRect(0, 0, W, H);
+      const fade = age > life - 500 ? (life - age) / 500 : 1;
+      for (let i = 0; i < parts.length; i++) {
+        const p = parts[i];
+        p.vy += 520 * dt; p.vx *= 0.985; p.vy *= 0.985;
+        p.x += p.vx * dt; p.y += p.vy * dt; p.rot += p.spin * dt; p.flip += p.flipSpeed * dt;
+        if (p.y * dpr > H + 20) continue;
+        const c = Math.cos(p.rot), sn = Math.sin(p.rot), w = Math.cos(p.flip) * 0.75 + 0.25;
+        ctx.setTransform(dpr * c * w, dpr * sn * w, -dpr * sn, dpr * c, p.x * dpr, p.y * dpr);
+        ctx.globalAlpha = fade;
+        ctx.fillStyle = p.color;
+        if (p.kind === 2) { ctx.beginPath(); ctx.arc(0, 0, p.w / 2, 0, 6.2832); ctx.fill(); }
+        else ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+      }
+      ctx.globalAlpha = 1;
+    }
+    /** @param origins [{x,y}] in CSS pixels; the burst is shared between them. */
+    function burst(origins, opts) {
+      if (!origins.length || document.hidden) return;
+      ensure();
+      const liteMode = !!(opts && opts.lite);
+      dpr = liteMode ? 1 : Math.min(window.devicePixelRatio || 1, 1.5);
+      const W = window.innerWidth, H = window.innerHeight;
+      canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
+      canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+      const n = liteMode ? 36 : 90;
+      parts = [];
+      for (let i = 0; i < n; i++) {
+        const o = origins[i % origins.length];
+        const a = -Math.PI / 2 + (Math.random() - 0.5) * 2.4;   // a wide upward fan
+        const v = 260 + Math.random() * 380;
+        const kind = i % 3;                                       // strip, square, circle
+        const w = kind === 0 ? 5 + Math.random() * 4 : 7 + Math.random() * 5;
+        parts.push({ x: o.x + (Math.random() - 0.5) * 20, y: o.y + (Math.random() - 0.5) * 20,
+          vx: Math.cos(a) * v, vy: Math.sin(a) * v, kind, w, h: kind === 0 ? w * 2.2 : w,
+          color: PALETTE[(Math.random() * PALETTE.length) | 0],
+          rot: Math.random() * 6.28, spin: (Math.random() - 0.5) * 14, flip: Math.random() * 6.28, flipSpeed: 6 + Math.random() * 8 });
+      }
+      life = liteMode ? 1500 : 2300;
+      canvas.hidden = false;
+      cancelAnimationFrame(raf);
+      t0 = last = performance.now();
+      onDone = opts && opts.onDone;
+      raf = requestAnimationFrame(frame);
+    }
+    function stop() {
+      cancelAnimationFrame(raf); raf = 0; parts = [];
+      if (canvas && !canvas.hidden) { ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, canvas.width, canvas.height); canvas.hidden = true; }
+      if (onDone) { const f = onDone; onDone = null; f(); }
+    }
+    document.addEventListener('visibilitychange', () => { if (document.hidden) stop(); });
+    return { burst, stop };
+  }
+  const confetti = createConfetti();
 
   // ---------------------------------------------------------------------------
   // State
@@ -278,7 +399,7 @@
   }
 
   function startGame(existingDeal) {
-    clearTimeout(aiTimer); clearTimeout(overlayTimer);
+    clearTimeout(aiTimer); clearTimeout(overlayTimer); confetti.stop();
     if (aiAnim) { aiAnim.onfinish = null; aiAnim.cancel(); aiAnim = null; }
     drag = null;
     closeDialogs();
@@ -494,6 +615,7 @@
     const cells = new Set();
     result.lines.forEach((l) => l.forEach((c) => cells.add(c)));
     cells.forEach((c) => cellEl(c).classList.add('is-win'));
+    if (result.winner === 'P') celebrate(cells);
     const stats = store.get('stats', { wins: 0, losses: 0, draws: 0 });
     let title, text, cls;
     if (result.winner === 'P') {
@@ -509,11 +631,23 @@
     $('#result-title').textContent = title;
     $('#result-title').className = 'dialog-title ' + cls;
     $('#result-text').textContent = text;
+    const mini = $('#result-board');
+    mini.hidden = !result.winner;
+    mini.innerHTML = result.winner ? miniBoardSVG(game.board, result.lines, cls) : '';
     $('#result-stats').innerHTML =
       '<div><b>' + stats.wins + '</b>' + t('wins') + '</div>' +
       '<div><b>' + stats.draws + '</b>' + t('draws') + '</div>' +
       '<div><b>' + stats.losses + '</b>' + t('losses') + '</div>';
     overlayTimer = setTimeout(() => { showDialog(ui.overlay, $('#btn-again')); }, result.winner ? 1100 : 700);
+  }
+
+  /** Confetti out of the winning cells. Skipped for reduced motion; smaller and shorter in lite mode. */
+  function celebrate(cells) {
+    if (reduceMotion() || document.hidden) return;
+    const origins = [];
+    cells.forEach((c) => { const r = cellEl(c).getBoundingClientRect(); origins.push({ x: r.left + r.width / 2, y: r.top + r.height / 2 }); });
+    if (bokeh) bokeh.stop(); // one animated canvas at a time while the dialog pops in
+    confetti.burst(origins, { lite, onDone: () => { if (bokeh && !document.hidden) bokeh.start(); } });
   }
 
   // ---------------------------------------------------------------------------
@@ -741,7 +875,7 @@
   }
 
   function showSplash() {
-    clearTimeout(aiTimer); clearTimeout(overlayTimer);
+    clearTimeout(aiTimer); clearTimeout(overlayTimer); confetti.stop();
     if (aiAnim) { aiAnim.onfinish = null; aiAnim.cancel(); aiAnim = null; }
     drag = null;
     ui.dragLayer.innerHTML = '';
