@@ -1,7 +1,8 @@
 // Чистая логика игры: разбор уровней, проверка установки заряда, расчёт взрыва, солвер.
 // Без DOM — используется и в браузере, и в Node (tools/check-levels.mjs).
 
-export const EMPTY = 0, NORMAL = 1, TNT = 2, STEEL = 3;
+// ICE — лёд: заряд на него поставить нельзя, он тает только от волны (напалм, лазер, динамит).
+export const EMPTY = 0, NORMAL = 1, TNT = 2, STEEL = 3, ICE = 4;
 
 export const KIND_INFO = {
   basic: { name: 'Charge', desc: 'Blasts exactly its own shape.' },
@@ -39,6 +40,7 @@ export function parseLevel(def) {
       if (c === '#') { type[i] = NORMAL; hp[i] = 1; }
       else if (c === 'T') { type[i] = TNT; hp[i] = 1; }
       else if (c === 'S') { type[i] = STEEL; hp[i] = 2; }
+      else if (c === 'I') { type[i] = ICE; hp[i] = 1; }
     }
   }
   return {
@@ -58,10 +60,12 @@ export function blocksLeft(hp) {
 }
 
 export function canPlace(b, ch, ox, oy) {
-  const { w, h, hp } = b;
+  const { w, h, hp, type } = b;
   for (const [cx, cy] of ch.cells) {
     const x = ox + cx, y = oy + cy;
-    if (x < 0 || y < 0 || x >= w || y >= h || !hp[y * w + x]) return false;
+    if (x < 0 || y < 0 || x >= w || y >= h) return false;
+    const i = y * w + x;
+    if (!hp[i] || type[i] === ICE) return false;
   }
   return true;
 }
@@ -327,7 +331,7 @@ export function countTilings(board, charges, limit = 1000) {
       const ch = groups[g].ch;
       for (const [cx, cy] of ch.cells) {
         const ox = fx - cx, oy = fy - cy;
-        if (!canPlace({ w, h: board.h, hp }, ch, ox, oy)) continue;
+        if (!canPlace({ w, h: board.h, hp, type: board.type }, ch, ox, oy)) continue;
         for (const [ax, ay] of ch.cells) hp[(oy + ay) * w + ox + ax]--;
         counts[g]--;
         rec();

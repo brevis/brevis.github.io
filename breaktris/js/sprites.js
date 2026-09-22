@@ -1,6 +1,6 @@
 // Все спрайты рисуются один раз в offscreen-канвасы (дешёвый drawImage в кадре,
 // никаких shadowBlur/фильтров в рантайме — важно для слабых телефонов).
-import { NORMAL, TNT, STEEL } from './logic.js';
+import { NORMAL, TNT, STEEL, ICE } from './logic.js';
 
 export const KIND_COLOR = {
   basic: { rim: '#ff5ec8', glow: 'rgba(255,94,200,' },
@@ -133,6 +133,52 @@ function tntBlock(ctx, s) {
   ctx.fill();
 }
 
+// Лёд: бледный полупрозрачный блок с гранями, изморозью и снежинкой.
+function iceBlock(ctx, s) {
+  const b = Math.max(1, s * 0.06);
+  const r = s * 0.16;
+  rrect(ctx, 0, 0, s, s, r);
+  ctx.fillStyle = '#2b7fa6';
+  ctx.fill();
+  const g = ctx.createLinearGradient(0, 0, s, s);
+  g.addColorStop(0, '#f4fdff');
+  g.addColorStop(0.45, '#b9ecfb');
+  g.addColorStop(1, '#6fc6e6');
+  rrect(ctx, b, b, s - b * 2, s - b * 2, r * 0.8);
+  ctx.fillStyle = g;
+  ctx.fill();
+  // грань-скол
+  ctx.fillStyle = 'rgba(255,255,255,0.45)';
+  ctx.beginPath();
+  ctx.moveTo(b * 2, b * 2); ctx.lineTo(s * 0.62, b * 2); ctx.lineTo(b * 2, s * 0.62);
+  ctx.closePath(); ctx.fill();
+  // изморозь
+  ctx.strokeStyle = 'rgba(255,255,255,0.75)';
+  ctx.lineCap = 'round';
+  ctx.lineWidth = Math.max(1, s * 0.035);
+  ctx.beginPath();
+  ctx.moveTo(s * 0.62, s * 0.8); ctx.lineTo(s * 0.82, s * 0.6);
+  ctx.moveTo(s * 0.72, s * 0.86); ctx.lineTo(s * 0.86, s * 0.72);
+  ctx.stroke();
+  // снежинка
+  const c = s / 2, R = s * 0.2;
+  ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+  ctx.lineWidth = Math.max(1, s * 0.045);
+  ctx.beginPath();
+  for (let k = 0; k < 3; k++) {
+    const a = k * Math.PI / 3 + Math.PI / 2;
+    const dx = Math.cos(a) * R, dy = Math.sin(a) * R;
+    ctx.moveTo(c - dx, c - dy); ctx.lineTo(c + dx, c + dy);
+    for (const sgn of [1, -1]) {
+      const ex = c + sgn * dx * 0.6, ey = c + sgn * dy * 0.6;
+      const ba = a + (sgn > 0 ? 0 : Math.PI);
+      ctx.moveTo(ex, ey); ctx.lineTo(ex + Math.cos(ba + 0.7) * R * 0.35, ey + Math.sin(ba + 0.7) * R * 0.35);
+      ctx.moveTo(ex, ey); ctx.lineTo(ex + Math.cos(ba - 0.7) * R * 0.35, ey + Math.sin(ba - 0.7) * R * 0.35);
+    }
+  }
+  ctx.stroke();
+}
+
 function steelBlock(ctx, s, cracked) {
   toyBlock(ctx, s, TOY.steel, { bigRivets: true });
   // крест-усиление
@@ -170,6 +216,7 @@ export function buildBlockSprites(px) {
     [NORMAL]: mk((ctx, s) => toyBlock(ctx, s, TOY.blue)),
     [TNT]: mk(tntBlock),
     [STEEL]: mk((ctx, s) => steelBlock(ctx, s, false)),
+    [ICE]: mk(iceBlock),
     steelCracked: mk((ctx, s) => steelBlock(ctx, s, true)),
     charge: {
       basic: mk((ctx, s) => energyBlock(ctx, s, ENERGY.basic)),

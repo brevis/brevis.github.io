@@ -1,7 +1,7 @@
 // Экраны, HUD, модалки, сохранение прогресса.
 import { LEVELS } from './levels.js';
 import { Game } from './game.js';
-import { parseCharge, NORMAL, TNT, STEEL } from './logic.js';
+import { parseCharge, NORMAL, TNT, STEEL, ICE } from './logic.js';
 import { buildBlockSprites, buildBubble } from './sprites.js';
 import { TitleBg } from './title-bg.js';
 import { sfx, unlockAudio, setSound, soundOn } from './audio.js';
@@ -203,6 +203,7 @@ const INTRO = {
   fire: { kicker: 'New charge', title: 'Napalm', text: 'Blasts its shape and sets every neighboring block on fire. It still has to sit fully on blocks.', icon: 'f:#' },
   steel: { kicker: 'New block', title: 'Steel', text: 'Takes two hits: the first blast only cracks it. Cover it twice or finish it off with a blast next to it.', icon: 'steel' },
   laser: { kicker: 'New charge', title: 'Laser', text: 'Burns through every row it touches, edge to edge.', icon: 'l:#' },
+  ice: { kicker: 'New block', title: 'Ice', text: "Charges slide right off ice — you can't place one on it. Melt it with napalm, burn through it with a laser, or blow it up with TNT.", icon: 'ice' },
 };
 
 function showIntro(key, then) {
@@ -227,8 +228,8 @@ function drawIcon(canvas, icon, size) {
   const ctx = canvas.getContext('2d');
   const spr = buildBlockSprites(Math.round(size * 0.6 * dpr));
   const s = canvas.width;
-  if (icon === 'tnt' || icon === 'steel') {
-    const img = spr[icon === 'tnt' ? TNT : STEEL];
+  if (icon === 'tnt' || icon === 'steel' || icon === 'ice') {
+    const img = spr[icon === 'tnt' ? TNT : icon === 'ice' ? ICE : STEEL];
     ctx.drawImage(img, s * 0.2, s * 0.2, s * 0.6, s * 0.6);
   } else {
     ctx.drawImage(buildBubble(s, parseCharge(icon), spr), 0, 0);

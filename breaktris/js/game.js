@@ -1,5 +1,5 @@
 // Игровая сцена: раскладка, ввод (drag & drop), анимации взрывов, отмена, подсказки.
-import { parseLevel, cloneBoard, canPlace, resolve, anyMove, blocksLeft, solve, NORMAL, TNT, STEEL } from './logic.js';
+import { parseLevel, cloneBoard, canPlace, resolve, anyMove, blocksLeft, solve, NORMAL, TNT, STEEL, ICE } from './logic.js';
 import { buildBlockSprites, buildBubble, buildPuff, buildBackground, makeCanvas, KIND_COLOR } from './sprites.js';
 import { FX } from './fx.js';
 import { sfx, haptic } from './audio.js';
@@ -13,6 +13,7 @@ const SPARK = {
   laser: ['#e8fdff', '#7de8ff', '#3fd6ff', '#fff'],
   tnt: ['#fff1a8', '#ffb02e', '#ff5a1f', '#ff2e1f'],
   steel: ['#ffffff', '#dfe6ee', '#aab4c0'],
+  ice: ['#ffffff', '#e6fbff', '#9fe6ff', '#6fcbea'],
 };
 
 export class Game {
@@ -291,7 +292,7 @@ export class Game {
     }
     if (t === 1 && ch.kind === 'fire') sfx.fire();
 
-    let destroyed = 0;
+    let destroyed = 0, melted = 0;
     for (const e of evs) {
       const x = e.i % w, y = (e.i / w) | 0;
       const px = bx + x * c, py = by + y * c;
@@ -301,8 +302,9 @@ export class Game {
         destroyed++;
         fx.shatter(spr, px, py, c, cx, cy + c * 0.3, 1);
         fx.flash(px, py, c, c, t === 1 && ch.kind === 'fire' ? '#ffb35c' : '#ffffff');
-        const pal = e.type === TNT ? SPARK.tnt : t === 1 && ch.kind !== 'basic' ? SPARK[ch.kind] : SPARK.basic;
-        fx.sparks(px + c / 2, py + c / 2, e.type === TNT ? 14 : 4, pal, e.type === TNT ? 1.4 : 1);
+        const pal = e.type === TNT ? SPARK.tnt : e.type === ICE ? SPARK.ice : t === 1 && ch.kind !== 'basic' ? SPARK[ch.kind] : SPARK.basic;
+        fx.sparks(px + c / 2, py + c / 2, e.type === TNT ? 14 : e.type === ICE ? 8 : 4, pal, e.type === TNT ? 1.4 : 1);
+        if (e.type === ICE) melted++;
         if ((e.i + t) % 2 === 0) fx.smoke(this.puff, px + c / 2, py + c / 2, c * 1.6);
         if (e.type === TNT) {
           hasTnt = true;
@@ -315,6 +317,7 @@ export class Game {
         sfx.crack();
       }
     }
+    if (melted) sfx.crack();
     if (destroyed) {
       fx.ring(cx, cy, c * (1 + Math.sqrt(destroyed) * 0.8), 'rgba(255,240,200,', 0.35, 6);
       fx.shake(Math.min(16, 3 + destroyed * 0.7 + (hasTnt ? 5 : 0)), 0.25 + Math.min(0.25, destroyed * 0.02));
