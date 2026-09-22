@@ -1,7 +1,7 @@
 {
   "name": "Kaboomino",
   "short_name": "Kaboomino",
-  "description": "Tetris in reverse: blast every block.",
+  "description": "A block puzzle played backwards: blast every block.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
