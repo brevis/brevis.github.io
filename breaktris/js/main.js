@@ -8,7 +8,7 @@ import { sfx, unlockAudio, setSound, soundOn } from './audio.js';
 const $ = id => document.getElementById(id);
 
 // ---------- Сохранение (для продакшена в Capacitor можно заменить на @capacitor/preferences) ----------
-const KEY = 'breaktris.v1';
+const KEY = 'kaboomino.v1';
 const save = Object.assign({ stars: [], hints: 3, sound: true, seen: {} }, (() => {
   try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) { return {}; }
 })());
@@ -69,7 +69,7 @@ function fitCanvas() {
 }
 fitCanvas();
 const game = new Game(cv, ui);
-window.__bt = { game, save, startLevel: i => startLevel(i) }; // для отладки из консоли
+window.__kb = { game, save, startLevel: i => startLevel(i) }; // для отладки из консоли
 
 let resizeRaf = 0;
 window.addEventListener('resize', () => {
@@ -86,7 +86,7 @@ function startLevel(i) {
   closeModalSilently();
   showScreen(null);
   $('hud-title').textContent = `${i + 1}. ${def.name}`;
-  $('hud-sub').textContent = `★★★ — ${def.par} ${plural(def.par, 'заряд', 'заряда', 'зарядов')}`;
+  $('hud-sub').textContent = `★★★ — ${def.par} ${def.par === 1 ? 'charge' : 'charges'}`;
   hudStars = 3;
   updateHintBadge();
   game.load(i, def);
@@ -102,18 +102,11 @@ function afterIntro(def) {
 
 function closeModalSilently() { modalOnClose = null; $('modal').classList.add('hidden'); }
 
-function plural(n, one, few, many) {
-  const m10 = n % 10, m100 = n % 100;
-  if (m10 === 1 && m100 !== 11) return one;
-  if (m10 >= 2 && m10 <= 4 && (m100 < 10 || m100 >= 20)) return few;
-  return many;
-}
-
 function onHud(s) {
   const potential = s.used <= s.par ? 3 : s.used <= s.par + 1 ? 2 : 1;
   const stars = $('hud-stars').children;
   for (let i = 0; i < 3; i++) stars[i].classList.toggle('off', i >= potential);
-  if (potential < hudStars) toast(potential === 2 ? 'Уже не ★★★ — можно отменить ход' : 'Осталась одна звезда');
+  if (potential < hudStars) toast(potential === 2 ? 'No more ★★★ — you can undo' : 'Only one star left');
   hudStars = potential;
   $('progress-fill').style.transform = `scaleX(${s.progress})`;
   $('btn-undo').disabled = !s.canUndo;
@@ -124,25 +117,25 @@ function updateHintBadge() { $('hint-count').textContent = save.hints; }
 function onWin(res) {
   const prev = save.stars[current] || 0;
   let bonus = '';
-  if (res.stars === 3 && prev < 3) { save.hints++; bonus = '+1 подсказка за ★★★'; }
+  if (res.stars === 3 && prev < 3) { save.hints++; bonus = '+1 hint for ★★★'; }
   save.stars[current] = Math.max(prev, res.stars);
   persist();
   updateHintBadge();
   const last = current >= LEVELS.length - 1;
-  const hint = res.stars < 3 ? `<p>Зарядов: ${res.used}. Можно справиться за ${res.par} — попробуешь на ★★★?</p>`
-    : `<p>Идеально! Зарядов: ${res.used} из ${res.total}.</p>`;
+  const hint = res.stars < 3 ? `<p>Charges used: ${res.used}. It can be done with ${res.par} — go for ★★★?</p>`
+    : `<p>Perfect! Charges used: ${res.used} of ${res.total}.</p>`;
   openModal(`
-    <div class="kicker">Уровень ${current + 1}</div>
-    <h3>${last ? 'Всё взорвано!' : 'Взорвано!'}</h3>
+    <div class="kicker">Level ${current + 1}</div>
+    <h3>${last ? 'All blasted!' : 'Blasted!'}</h3>
     <div class="big-stars">${starsHtml(res.stars)}</div>
     ${bonus ? `<div class="note">${bonus}</div>` : ''}
     ${hint}
-    ${last ? '<p>Это был последний уровень прототипа.</p>' : ''}
+    ${last ? '<p>That was the last level of the prototype.</p>' : ''}
     <div class="btns">
-      ${last ? '' : '<button class="btn big" data-a="next">Дальше</button>'}
+      ${last ? '' : '<button class="btn big" data-a="next">Next</button>'}
       <div class="row">
-        <button class="btn secondary" data-a="retry">Ещё раз</button>
-        <button class="btn secondary" data-a="levels">Уровни</button>
+        <button class="btn secondary" data-a="retry">Retry</button>
+        <button class="btn secondary" data-a="levels">Levels</button>
       </div>
     </div>`, card => {
     card.querySelector('[data-a=retry]').onclick = () => { sfx.click(); startLevel(current); };
@@ -155,11 +148,11 @@ function onWin(res) {
 
 function onStuck(reason) {
   openModal(`
-    <h3>Тупик!</h3>
-    <p>${reason}. Отмени ход и попробуй иначе.</p>
+    <h3>Dead end!</h3>
+    <p>${reason}. Undo a move and try another way.</p>
     <div class="row">
-      <button class="btn" data-a="undo">↶ Отменить</button>
-      <button class="btn secondary" data-a="restart">Заново</button>
+      <button class="btn" data-a="undo">↶ Undo</button>
+      <button class="btn secondary" data-a="restart">Restart</button>
     </div>`, card => {
     card.querySelector('[data-a=undo]').onclick = () => { sfx.click(); closeModalSilently(); game.undo(); };
     card.querySelector('[data-a=restart]').onclick = () => { sfx.click(); closeModalSilently(); game.restart(); hudStars = 3; };
@@ -168,12 +161,12 @@ function onStuck(reason) {
 
 // ---------- Карточки новых механик ----------
 const INTRO = {
-  tutorial: { kicker: 'Как играть', title: 'Взорви фигуру', text: 'Перетащи заряд из пузыря на фигуру. Заряд должен целиком лечь на блоки — тогда он их взорвёт. Уничтожь всё до последнего блока!', icon: '##/##' },
-  stars: { kicker: 'Звёзды', title: 'Экономь заряды', text: 'Не обязательно тратить все заряды. Справишься меньшим числом — получишь ★★★, а оставшиеся заряды бахнут салютом.', icon: 'stars' },
-  tnt: { kicker: 'Новый блок', title: 'Динамит', text: 'Взрывается от любого удара и сносит всё вокруг себя (3×3). Динамит рядом с динамитом — цепная реакция!', icon: 'tnt' },
-  fire: { kicker: 'Новый заряд', title: 'Напалм', text: 'Взрывает свою форму и поджигает все соседние блоки. Ставится так же — целиком на блоки.', icon: 'f:#' },
-  steel: { kicker: 'Новый блок', title: 'Сталь', text: 'Выдерживает два удара: первый взрыв её только трескает. Накрой сталь дважды или добей взрывом рядом.', icon: 'steel' },
-  laser: { kicker: 'Новый заряд', title: 'Лазер', text: 'Прожигает насквозь все ряды, через которые проходит, — от края до края.', icon: 'l:#' },
+  tutorial: { kicker: 'How to play', title: 'Blast the shape', text: 'Drag a charge from its bubble onto the shape. It has to sit fully on blocks — then it blows them up. Destroy every last block!', icon: '##/##' },
+  stars: { kicker: 'Stars', title: 'Save your charges', text: "You don't have to use every charge. Clear the shape with fewer to earn ★★★ — leftovers go off as fireworks.", icon: 'stars' },
+  tnt: { kicker: 'New block', title: 'TNT', text: 'Goes off from any hit and wipes out everything around it (3×3). TNT next to TNT sets off a chain reaction!', icon: 'tnt' },
+  fire: { kicker: 'New charge', title: 'Napalm', text: 'Blasts its shape and sets every neighboring block on fire. It still has to sit fully on blocks.', icon: 'f:#' },
+  steel: { kicker: 'New block', title: 'Steel', text: 'Takes two hits: the first blast only cracks it. Cover it twice or finish it off with a blast next to it.', icon: 'steel' },
+  laser: { kicker: 'New charge', title: 'Laser', text: 'Burns through every row it touches, edge to edge.', icon: 'l:#' },
 };
 
 function showIntro(key, then) {
@@ -183,7 +176,7 @@ function showIntro(key, then) {
     <h3>${it.title}</h3>
     ${it.icon === 'stars' ? '<div class="big-stars">' + starsHtml(3) + '</div>' : '<canvas id="intro-icon" width="10" height="10"></canvas>'}
     <p>${it.text}</p>
-    <div class="btns"><button class="btn big" data-a="ok">Понятно</button></div>`, card => {
+    <div class="btns"><button class="btn big" data-a="ok">Got it</button></div>`, card => {
     const c = card.querySelector('#intro-icon');
     if (c) drawIcon(c, it.icon, 92);
     card.querySelector('[data-a=ok]').onclick = () => { unlockAudio(); sfx.click(); closeModal(); };
@@ -233,20 +226,20 @@ $('btn-levels').onclick = () => { unlockAudio(); sfx.click(); openLevels(); };
 $('btn-levels-back').onclick = () => { sfx.click(); showScreen('screen-title'); };
 $('btn-sound').onclick = () => {
   save.sound = !soundOn(); setSound(save.sound); persist();
-  $('btn-sound').textContent = `Звук: ${save.sound ? 'вкл' : 'выкл'}`;
+  $('btn-sound').textContent = `Sound: ${save.sound ? 'on' : 'off'}`;
   unlockAudio(); sfx.click();
 };
-$('btn-sound').textContent = `Звук: ${save.sound ? 'вкл' : 'выкл'}`;
+$('btn-sound').textContent = `Sound: ${save.sound ? 'on' : 'off'}`;
 $('btn-menu').onclick = () => { sfx.click(); openLevels(); };
 $('btn-undo').onclick = () => { if (game.undo()) sfx.click(); };
 $('btn-restart').onclick = () => { sfx.click(); hudStars = 3; game.restart(); };
 $('btn-hint').onclick = () => {
   unlockAudio();
   if (game.busy || game.over) return;
-  if (save.hints <= 0) { toast('Подсказки кончились — они даются за ★★★'); return; }
+  if (save.hints <= 0) { toast('Out of hints — earn more with ★★★'); return; }
   const m = game.hintMove();
-  if (m && m.dead) { toast('Отсюда уже не решить — отмени ход ↶'); return; }
-  if (!m) { toast('Не нашёл ход быстро — попробуй отменить ход'); return; }
+  if (m && m.dead) { toast("Can't be solved from here — undo ↶"); return; }
+  if (!m) { toast("Couldn't find a move quickly — try undoing"); return; }
   save.hints--; persist(); updateHintBadge();
   sfx.click();
   game.showHint(m);

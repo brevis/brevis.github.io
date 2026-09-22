@@ -133,7 +133,7 @@ export class Game {
 
     this.sprites = buildBlockSprites(Math.round(cell * dpr));
     this.bubbles = this.charges.map(ch => buildBubble(Math.round(D * dpr), ch, this.sprites));
-    this.puff = buildPuff(Math.round(48 * dpr), '70,66,72');
+    this.puff = buildPuff(Math.round(48 * dpr), '96,90,150');
     this.glow = buildPuff(Math.round(48 * dpr), '255,200,120');
     this.boardCache = makeCanvas(w * cell * dpr, h * cell * dpr);
     this.renderBoardCache();
@@ -148,7 +148,7 @@ export class Game {
       const i = y * w + x;
       const hp = this.vis[i];
       if (!hp) {
-        if (this.initial.hp[i]) { ctx.fillStyle = 'rgba(0,0,0,0.13)'; ctx.fillRect(x * c + 1, y * c + 1, c - 2, c - 2); }
+        if (this.initial.hp[i]) { ctx.fillStyle = 'rgba(140,150,255,0.09)'; ctx.fillRect(x * c + 1, y * c + 1, c - 2, c - 2); }
         continue;
       }
       ctx.drawImage(this.spriteFor(i, hp), x * c, y * c, c, c);
@@ -331,16 +331,16 @@ export class Game {
     const left = blocksLeft(this.board.hp);
     const mx = this.bx + this.board.w * this.cell / 2;
     const my = this.by + this.board.h * this.cell / 2;
-    if (stats.tnt >= 2) this.fx.text(`ЦЕПНАЯ РЕАКЦИЯ ×${stats.tnt}!`, mx, my, { color: '#ffcf4a', size: Math.min(28, this.W / 13) });
-    else if (stats.destroyed >= 10) this.fx.text('МОЩНО!', mx, my, { color: '#ffcf4a', size: 32 });
-    else if (stats.destroyed >= 6) this.fx.text('БАХ!', mx, my, { color: '#fff', size: 26 });
+    if (stats.tnt >= 2) this.fx.text(`CHAIN REACTION ×${stats.tnt}!`, mx, my, { color: '#ffcf4a', size: Math.min(28, this.W / 13) });
+    else if (stats.destroyed >= 10) this.fx.text('MASSIVE!', mx, my, { color: '#ffcf4a', size: 32 });
+    else if (stats.destroyed >= 6) this.fx.text('BOOM!', mx, my, { color: '#fff', size: 26 });
     this.emitHud();
     if (!left) { this.win(); return; }
     if (!anyMove(this.board, this.charges, this.used)) {
       this.over = true;
       const noCharges = this.used.every(Boolean);
       sfx.fail();
-      this.after(0.45, () => this.ui.onStuck(noCharges ? 'Заряды закончились' : 'Ни один заряд больше не помещается'));
+      this.after(0.45, () => this.ui.onStuck(noCharges ? 'Out of charges' : 'No charge fits anywhere'));
       return;
     }
     if (this.def.intro === 'tutorial') this.showHint(this.hintMove(), true);
@@ -352,7 +352,7 @@ export class Game {
     const stars = used <= par ? 3 : used <= par + 1 ? 2 : 1;
     const mx = this.bx + this.board.w * this.cell / 2;
     const my = this.by + this.board.h * this.cell / 2;
-    this.fx.text('ЧИСТО!', mx, my - 10, { color: '#7dffb0', size: 44, life: 1.4 });
+    this.fx.text('CLEAR!', mx, my - 10, { color: '#7dffb0', size: 44, life: 1.4 });
     sfx.win();
     haptic('heavy');
     // оставшиеся заряды — салютом
@@ -363,7 +363,7 @@ export class Game {
       this.spent[k] = true;
       this.fx.sparks(s.x, s.y, 36, col, 1.3);
       this.fx.ring(s.x, s.y, this.D * 0.9, 'rgba(255,255,255,', 0.45, 8);
-      this.fx.text('+ЗАПАС', s.x, s.y - this.D * 0.6, { size: 18, color: '#ffe27a', life: 0.9 });
+      this.fx.text('+BONUS', s.x, s.y - this.D * 0.6, { size: 18, color: '#ffe27a', life: 0.9 });
       sfx.firework(i);
       haptic('medium');
     }));

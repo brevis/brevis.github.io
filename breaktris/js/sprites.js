@@ -3,15 +3,13 @@
 import { NORMAL, TNT, STEEL } from './logic.js';
 
 export const KIND_COLOR = {
-  basic: { rim: '#d05ce0', glow: 'rgba(214,92,232,', block: 'blue' },
-  fire: { rim: '#ff8a2a', glow: 'rgba(255,138,42,', block: 'fire' },
-  laser: { rim: '#3fd6ff', glow: 'rgba(63,214,255,', block: 'ice' },
+  basic: { rim: '#ff5ec8', glow: 'rgba(255,94,200,' },
+  fire: { rim: '#ff9a2e', glow: 'rgba(255,154,46,' },
+  laser: { rim: '#45e6ff', glow: 'rgba(69,230,255,' },
 };
 
 const PAL = {
-  blue: { top: '#a3b8e8', bot: '#7d95d2', hi: '#e2e9fb', lo: '#34479a', edge: '#243373', rivet: '#223070' },
-  fire: { top: '#ffc07a', bot: '#f07a32', hi: '#fff0d8', lo: '#a8431a', edge: '#6b2408', rivet: '#6b2408' },
-  ice: { top: '#a8f0ff', bot: '#4cc4e8', hi: '#f0fdff', lo: '#1f7fa6', edge: '#0d4a66', rivet: '#0d4a66' },
+  blue: { top: '#b1c4f2', bot: '#859edc', hi: '#eef2fd', lo: '#3a4ea3', edge: '#1f2b66', rivet: '#223070' },
   steel: { top: '#c4ccd6', bot: '#8a95a4', hi: '#f4f7fa', lo: '#4d5766', edge: '#262c36', rivet: '#262c36' },
 };
 
@@ -58,6 +56,47 @@ function metalBlock(ctx, s, p, opts = {}) {
     ctx.fillStyle = 'rgba(255,255,255,0.9)';
     ctx.fillRect(x + rv * 0.5, y + rv * 0.15, rv * 0.35, rv * 0.35);
   }
+}
+
+const ENERGY = {
+  basic: { edge: '#6e0b4e', top: '#ffa6e6', bot: '#e8309f', core: '#fff3fb' },
+  fire: { edge: '#7a2600', top: '#ffd77a', bot: '#ff6414', core: '#fff6d8' },
+  laser: { edge: '#044a63', top: '#b8fdff', bot: '#18bfe6', core: '#f2ffff' },
+};
+
+function rrect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+function energyBlock(ctx, s, p) {
+  const b = Math.max(1, s * 0.07);
+  rrect(ctx, 0, 0, s, s, s * 0.2);
+  ctx.fillStyle = p.edge;
+  ctx.fill();
+  const g = ctx.createLinearGradient(0, 0, 0, s);
+  g.addColorStop(0, p.top);
+  g.addColorStop(1, p.bot);
+  rrect(ctx, b, b, s - b * 2, s - b * 2, s * 0.15);
+  ctx.fillStyle = g;
+  ctx.fill();
+  // глянец
+  rrect(ctx, b * 2, b * 1.6, s - b * 4, s * 0.36, s * 0.12);
+  ctx.fillStyle = 'rgba(255,255,255,0.45)';
+  ctx.fill();
+  // искра-ядро
+  const c = s / 2, r = s * 0.2;
+  ctx.fillStyle = p.core;
+  ctx.beginPath();
+  ctx.moveTo(c, c - r * 1.1); ctx.quadraticCurveTo(c, c, c + r * 1.1, c + r * 0.15);
+  ctx.quadraticCurveTo(c, c, c, c + r * 1.4); ctx.quadraticCurveTo(c, c, c - r * 1.1, c + r * 0.15);
+  ctx.quadraticCurveTo(c, c, c, c - r * 1.1);
+  ctx.fill();
 }
 
 function tntBlock(ctx, s) {
@@ -125,9 +164,9 @@ export function buildBlockSprites(px) {
     [STEEL]: mk((ctx, s) => steelBlock(ctx, s, false)),
     steelCracked: mk((ctx, s) => steelBlock(ctx, s, true)),
     charge: {
-      basic: mk((ctx, s) => metalBlock(ctx, s, PAL.blue)),
-      fire: mk((ctx, s) => metalBlock(ctx, s, PAL.fire)),
-      laser: mk((ctx, s) => metalBlock(ctx, s, PAL.ice)),
+      basic: mk((ctx, s) => energyBlock(ctx, s, ENERGY.basic)),
+      fire: mk((ctx, s) => energyBlock(ctx, s, ENERGY.fire)),
+      laser: mk((ctx, s) => energyBlock(ctx, s, ENERGY.laser)),
     },
   };
 }
@@ -160,9 +199,9 @@ export function buildBubble(px, charge, blockSprites) {
   ctx.fillRect(0, 0, px, px);
   // стеклянный шар
   const body = ctx.createRadialGradient(r * 0.75, r * 0.65, r * 0.1, r, r, r * 0.92);
-  body.addColorStop(0, '#5b5864');
-  body.addColorStop(0.7, '#2a2730');
-  body.addColorStop(1, '#141218');
+  body.addColorStop(0, '#7b76b0');
+  body.addColorStop(0.7, '#3b3578');
+  body.addColorStop(1, '#1d1946');
   ctx.fillStyle = body;
   ctx.beginPath(); ctx.arc(r, r, r * 0.9, 0, Math.PI * 2); ctx.fill();
   // пузырьки внутри
@@ -203,9 +242,9 @@ export function buildBubble(px, charge, blockSprites) {
   const spr = blockSprites.charge[charge.kind];
   for (const [x, y] of charge.cells) ctx.drawImage(spr, ox + x * m, oy + y * m, m, m);
   // блик
-  ctx.fillStyle = 'rgba(255,255,255,0.22)';
+  ctx.fillStyle = 'rgba(255,255,255,0.3)';
   ctx.beginPath();
-  ctx.ellipse(r * 0.68, r * 0.45, r * 0.38, r * 0.16, -0.6, 0, Math.PI * 2);
+  ctx.ellipse(r * 0.66, r * 0.42, r * 0.4, r * 0.17, -0.6, 0, Math.PI * 2);
   ctx.fill();
   return c;
 }
@@ -213,12 +252,22 @@ export function buildBubble(px, charge, blockSprites) {
 export function buildBackground(w, h) {
   const c = makeCanvas(w, h);
   const ctx = c.getContext('2d');
-  ctx.fillStyle = '#4b4b50';
+  const base = ctx.createLinearGradient(0, 0, 0, h);
+  base.addColorStop(0, '#2c2674');
+  base.addColorStop(0.55, '#1e1a55');
+  base.addColorStop(1, '#130f36');
+  ctx.fillStyle = base;
   ctx.fillRect(0, 0, w, h);
-  const g = ctx.createRadialGradient(w / 2, h * 0.42, Math.min(w, h) * 0.1, w / 2, h * 0.45, Math.max(w, h) * 0.75);
-  g.addColorStop(0, 'rgba(255,255,255,0.06)');
-  g.addColorStop(1, 'rgba(0,0,0,0.35)');
+  const g = ctx.createRadialGradient(w / 2, h * 0.42, 0, w / 2, h * 0.42, Math.max(w, h) * 0.6);
+  g.addColorStop(0, 'rgba(150,130,255,0.22)');
+  g.addColorStop(1, 'rgba(150,130,255,0)');
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, w, h);
+  const r = rng(11), u = Math.max(1, w / 400);
+  for (let i = 0; i < 70; i++) {
+    ctx.fillStyle = `rgba(255,255,255,${0.04 + r() * 0.1})`;
+    const d = u * (1 + r() * 1.6);
+    ctx.fillRect(r() * w, r() * h, d, d);
+  }
   return c;
 }

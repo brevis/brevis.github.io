@@ -4,9 +4,9 @@
 export const EMPTY = 0, NORMAL = 1, TNT = 2, STEEL = 3;
 
 export const KIND_INFO = {
-  basic: { name: 'Заряд', desc: 'Взрывает ровно свою форму.' },
-  fire: { name: 'Напалм', desc: 'Взрывает форму и поджигает все соседние блоки.' },
-  laser: { name: 'Лазер', desc: 'Взрывает форму и прожигает её ряды целиком.' },
+  basic: { name: 'Charge', desc: 'Blasts exactly its own shape.' },
+  fire: { name: 'Napalm', desc: 'Blasts its shape and burns every neighboring block.' },
+  laser: { name: 'Laser', desc: 'Blasts its shape and burns through its whole rows.' },
 };
 
 const KIND_PREFIX = { b: 'basic', f: 'fire', l: 'laser' };
