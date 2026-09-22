@@ -8,11 +8,6 @@ export const KIND_COLOR = {
   laser: { rim: '#45e6ff', glow: 'rgba(69,230,255,' },
 };
 
-const PAL = {
-  blue: { top: '#b1c4f2', bot: '#859edc', hi: '#eef2fd', lo: '#3a4ea3', edge: '#1f2b66', rivet: '#223070' },
-  steel: { top: '#c4ccd6', bot: '#8a95a4', hi: '#f4f7fa', lo: '#4d5766', edge: '#262c36', rivet: '#262c36' },
-};
-
 export function makeCanvas(w, h) {
   const c = document.createElement('canvas');
   c.width = Math.max(1, Math.round(w));
@@ -20,43 +15,8 @@ export function makeCanvas(w, h) {
   return c;
 }
 
-// Детерминированный шум, чтобы все блоки выглядели одинаково.
+// Детерминированный rng: пузырьки в шарах и звёзды на фоне одинаковые при каждой отрисовке.
 function rng(seed) { return () => ((seed = (seed * 16807) % 2147483647) / 2147483647); }
-
-function metalBlock(ctx, s, p, opts = {}) {
-  const b = Math.max(1, s * 0.07);
-  ctx.fillStyle = p.edge;
-  ctx.fillRect(0, 0, s, s);
-  const g = ctx.createLinearGradient(0, 0, 0, s);
-  g.addColorStop(0, p.top);
-  g.addColorStop(1, p.bot);
-  ctx.fillStyle = g;
-  ctx.fillRect(b * 0.6, b * 0.6, s - b * 1.2, s - b * 1.2);
-  // фаска: светлая сверху/слева, тёмная снизу/справа
-  ctx.fillStyle = p.hi;
-  ctx.fillRect(b * 0.6, b * 0.6, s - b * 1.2, b);
-  ctx.fillRect(b * 0.6, b * 0.6, b, s - b * 1.2);
-  ctx.fillStyle = p.lo;
-  ctx.fillRect(b * 0.6, s - b * 1.6, s - b * 1.2, b);
-  ctx.fillRect(s - b * 1.6, b * 0.6, b, s - b * 1.2);
-  // шершавость металла
-  const r = rng(7);
-  const n = Math.floor(s * s / 30);
-  for (let i = 0; i < n; i++) {
-    ctx.fillStyle = r() < 0.5 ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)';
-    const d = Math.max(1, s * 0.03);
-    ctx.fillRect(b * 2 + r() * (s - b * 4), b * 2 + r() * (s - b * 4), d, d);
-  }
-  // заклёпки
-  const rv = Math.max(1.5, s * (opts.bigRivets ? 0.13 : 0.1));
-  const inset = s * 0.13;
-  for (const [x, y] of [[inset, inset], [s - inset - rv, inset], [inset, s - inset - rv], [s - inset - rv, s - inset - rv]]) {
-    ctx.fillStyle = p.rivet;
-    ctx.fillRect(x, y, rv, rv);
-    ctx.fillStyle = 'rgba(255,255,255,0.9)';
-    ctx.fillRect(x + rv * 0.5, y + rv * 0.15, rv * 0.35, rv * 0.35);
-  }
-}
 
 const ENERGY = {
   basic: { edge: '#6e0b4e', top: '#ffa6e6', bot: '#e8309f', core: '#fff3fb' },
@@ -99,38 +59,86 @@ function energyBlock(ctx, s, p) {
   ctx.fill();
 }
 
-function tntBlock(ctx, s) {
-  const b = Math.max(1, s * 0.07);
-  ctx.fillStyle = '#4a0f06';
-  ctx.fillRect(0, 0, s, s);
-  const g = ctx.createLinearGradient(0, 0, 0, s);
-  g.addColorStop(0, '#ff6a45');
-  g.addColorStop(1, '#c42a14');
+// Стилизованный «игрушечный» металл: скругления, чистая фаска, глянец, круглые заклёпки.
+const TOY = {
+  blue: { edge: '#1a2766', rim: '#c7d6ff', top: '#9ab6ff', bot: '#5f80e6', face0: '#a9c3ff', face1: '#7394f0', rivet: '#2a3b8f' },
+  steel: { edge: '#1c2029', rim: '#e9eef5', top: '#b9c2cf', bot: '#737f90', face0: '#c9d1dc', face1: '#8893a3', rivet: '#2b313d' },
+};
+
+function toyBlock(ctx, s, p, opts = {}) {
+  const b = Math.max(1, s * 0.06);
+  const r = s * 0.16;
+  rrect(ctx, 0, 0, s, s, r);
+  ctx.fillStyle = p.edge;
+  ctx.fill();
+  // фаска: светлая кромка сверху, тёмная снизу
+  let g = ctx.createLinearGradient(0, 0, 0, s);
+  g.addColorStop(0, p.rim);
+  g.addColorStop(0.5, p.top);
+  g.addColorStop(1, p.bot);
+  rrect(ctx, b, b, s - b * 2, s - b * 2, r * 0.8);
   ctx.fillStyle = g;
-  ctx.fillRect(b * 0.6, b * 0.6, s - b * 1.2, s - b * 1.2);
-  ctx.fillStyle = 'rgba(255,220,200,0.8)';
-  ctx.fillRect(b * 0.6, b * 0.6, s - b * 1.2, b);
-  ctx.fillStyle = 'rgba(90,10,0,0.6)';
-  ctx.fillRect(b * 0.6, s - b * 1.6, s - b * 1.2, b);
-  // полоса с надписью
-  ctx.fillStyle = '#f7f1e6';
-  ctx.fillRect(b * 1.2, s * 0.34, s - b * 2.4, s * 0.32);
-  ctx.fillStyle = '#b3200c';
+  ctx.fill();
+  // лицевая пластина
+  const inset = s * 0.14;
+  g = ctx.createLinearGradient(0, inset, 0, s - inset);
+  g.addColorStop(0, p.face0);
+  g.addColorStop(1, p.face1);
+  rrect(ctx, inset, inset * 0.9, s - inset * 2, s - inset * 2.1, r * 0.5);
+  ctx.fillStyle = g;
+  ctx.fill();
+  // глянцевый блик
+  rrect(ctx, inset * 1.25, inset * 1.05, s - inset * 2.5, s * 0.2, s * 0.08);
+  ctx.fillStyle = 'rgba(255,255,255,0.35)';
+  ctx.fill();
+  // круглые заклёпки
+  const rv = s * (opts.bigRivets ? 0.065 : 0.05);
+  const d = s * 0.11;
+  for (const [x, y] of [[d, d], [s - d, d], [d, s - d], [s - d, s - d]]) {
+    ctx.fillStyle = p.rivet;
+    ctx.beginPath(); ctx.arc(x, y, rv, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.85)';
+    ctx.beginPath(); ctx.arc(x - rv * 0.3, y - rv * 0.3, rv * 0.38, 0, Math.PI * 2); ctx.fill();
+  }
+}
+
+function tntBlock(ctx, s) {
+  const b = Math.max(1, s * 0.06);
+  const r = s * 0.16;
+  rrect(ctx, 0, 0, s, s, r);
+  ctx.fillStyle = '#5a0d04';
+  ctx.fill();
+  const g = ctx.createLinearGradient(0, 0, 0, s);
+  g.addColorStop(0, '#ffb09a');
+  g.addColorStop(0.35, '#ff5a36');
+  g.addColorStop(1, '#c21f0c');
+  rrect(ctx, b, b, s - b * 2, s - b * 2, r * 0.8);
+  ctx.fillStyle = g;
+  ctx.fill();
+  // палочки динамита
+  ctx.fillStyle = 'rgba(120,10,0,0.35)';
+  for (let k = 1; k < 3; k++) ctx.fillRect(s * k / 3 - s * 0.012, b * 2, s * 0.024, s - b * 4);
+  // этикетка
+  rrect(ctx, s * 0.1, s * 0.33, s * 0.8, s * 0.34, s * 0.07);
+  ctx.fillStyle = '#fff4dc';
+  ctx.fill();
+  ctx.fillStyle = '#c21f0c';
   ctx.font = `900 ${Math.round(s * 0.27)}px system-ui, -apple-system, Roboto, sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText('TNT', s / 2, s * 0.51);
-  // палочки динамита
-  ctx.fillStyle = 'rgba(0,0,0,0.18)';
-  for (let k = 1; k < 3; k++) ctx.fillRect(s * k / 3 - b * 0.3, b, b * 0.6, s * 0.3);
-  for (let k = 1; k < 3; k++) ctx.fillRect(s * k / 3 - b * 0.3, s * 0.68, b * 0.6, s * 0.3 - b);
+  // блик
+  rrect(ctx, s * 0.16, b * 2, s * 0.68, s * 0.14, s * 0.06);
+  ctx.fillStyle = 'rgba(255,255,255,0.35)';
+  ctx.fill();
 }
 
 function steelBlock(ctx, s, cracked) {
-  metalBlock(ctx, s, PAL.steel, { bigRivets: true });
+  toyBlock(ctx, s, TOY.steel, { bigRivets: true });
   // крест-усиление
-  ctx.strokeStyle = 'rgba(40,48,60,0.35)';
-  ctx.lineWidth = Math.max(1, s * 0.06);
+  ctx.strokeStyle = 'rgba(40,48,60,0.3)';
+  ctx.lineCap = 'round';
+  ctx.lineWidth = Math.max(1, s * 0.07);
   ctx.beginPath();
   ctx.moveTo(s * 0.28, s * 0.28); ctx.lineTo(s * 0.72, s * 0.72);
   ctx.moveTo(s * 0.72, s * 0.28); ctx.lineTo(s * 0.28, s * 0.72);
@@ -159,7 +167,7 @@ function steelBlock(ctx, s, cracked) {
 export function buildBlockSprites(px) {
   const mk = fn => { const c = makeCanvas(px, px); fn(c.getContext('2d'), c.width); return c; };
   return {
-    [NORMAL]: mk((ctx, s) => metalBlock(ctx, s, PAL.blue)),
+    [NORMAL]: mk((ctx, s) => toyBlock(ctx, s, TOY.blue)),
     [TNT]: mk(tntBlock),
     [STEEL]: mk((ctx, s) => steelBlock(ctx, s, false)),
     steelCracked: mk((ctx, s) => steelBlock(ctx, s, true)),

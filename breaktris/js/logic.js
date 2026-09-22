@@ -183,6 +183,15 @@ function coverable(b, groups, allPs) {
   return true;
 }
 
+// Явный тупик: заряды не лезут никуда или какую-то клетку уже нечем достать.
+export function hopeless(board, charges, used) {
+  if (!blocksLeft(board.hp)) return false;
+  const groups = groupCharges(charges, used);
+  const allPs = groups.map(g => placements(board, g.ch));
+  if (allPs.every(p => !p.length)) return true;
+  return !coverable(board, groups, allPs);
+}
+
 function hpKey(hp) {
   let s = '';
   for (let i = 0; i < hp.length; i++) s += hp[i];

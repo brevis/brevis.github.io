@@ -3,6 +3,7 @@ import { LEVELS } from './levels.js';
 import { Game } from './game.js';
 import { parseCharge, NORMAL, TNT, STEEL } from './logic.js';
 import { buildBlockSprites, buildBubble } from './sprites.js';
+import { TitleBg } from './title-bg.js';
 import { sfx, unlockAudio, setSound, soundOn } from './audio.js';
 
 const $ = id => document.getElementById(id);
@@ -29,9 +30,11 @@ function toast(msg, ms = 2200) {
   toastTimer = setTimeout(() => t.classList.add('hidden'), ms);
 }
 
+let titleBg = null;
 function showScreen(id) {
   for (const s of document.querySelectorAll('.screen')) s.classList.toggle('hidden', s.id !== id);
   $('hud').classList.toggle('hidden', id !== null);
+  if (titleBg) id === 'screen-title' && !document.hidden ? titleBg.start() : titleBg.stop();
 }
 
 let modalOnClose = null;
@@ -209,9 +212,13 @@ function openLevels() {
     const st = save.stars[i] || 0;
     const locked = i > open;
     const stars = [0, 1, 2].map(k => `<span class="${k < st ? '' : 'off'}">★</span>`).join('');
-    return `<button class="lv ${locked ? 'locked' : ''} ${i === open && !st ? 'next' : ''}" data-i="${i}" ${locked ? 'disabled' : ''}>
-      ${locked ? '🔒' : i + 1}<small>${locked ? '' : stars}</small></button>`;
+    const head = d.chapter ? `<div class="chapter"><span>${d.chapter}</span></div>` : '';
+    return `${head}<button class="lv ${locked ? 'locked' : ''} ${i === open && !st ? 'next' : ''}" data-i="${i}" ${locked ? 'disabled' : ''}>
+      ${i + 1}<small>${locked ? '' : stars}</small></button>`;
   }).join('');
+  // прокрутим к текущему уровню
+  const cur = grid.querySelector(`[data-i="${open}"]`);
+  if (cur) grid.scrollTop = Math.max(0, cur.offsetTop - grid.offsetTop - grid.clientHeight / 2 + cur.offsetHeight / 2);
   grid.onclick = e => {
     const b = e.target.closest('.lv');
     if (!b || b.disabled) return;
@@ -223,13 +230,26 @@ function openLevels() {
 // ---------- Кнопки ----------
 $('btn-play').onclick = () => { unlockAudio(); sfx.click(); startLevel(unlockedUpTo()); };
 $('btn-levels').onclick = () => { unlockAudio(); sfx.click(); openLevels(); };
-$('btn-levels-back').onclick = () => { sfx.click(); showScreen('screen-title'); };
+$('btn-levels-back').onclick = () => { sfx.click(); titleBg = new TitleBg($('title-bg'));
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) titleBg.stop();
+  else if (!$('screen-title').classList.contains('hidden')) titleBg.start();
+});
+window.addEventListener('resize', () => titleBg.resize());
+showScreen('screen-title'); };
+function renderSoundBtn() {
+  const b = $('btn-sound');
+  b.classList.toggle('muted', !save.sound);
+  b.setAttribute('aria-label', save.sound ? 'Sound on' : 'Sound off');
+}
 $('btn-sound').onclick = () => {
   save.sound = !soundOn(); setSound(save.sound); persist();
-  $('btn-sound').textContent = `Sound: ${save.sound ? 'on' : 'off'}`;
+  renderSoundBtn();
+  const b = $('btn-sound');
+  b.classList.remove('pop'); void b.offsetWidth; b.classList.add('pop');
   unlockAudio(); sfx.click();
 };
-$('btn-sound').textContent = `Sound: ${save.sound ? 'on' : 'off'}`;
+renderSoundBtn();
 $('btn-menu').onclick = () => { sfx.click(); openLevels(); };
 $('btn-undo').onclick = () => { if (game.undo()) sfx.click(); };
 $('btn-restart').onclick = () => { sfx.click(); hudStars = 3; game.restart(); };
@@ -262,4 +282,10 @@ document.addEventListener('backbutton', () => openLevels());
   }));
 })();
 
+titleBg = new TitleBg($('title-bg'));
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) titleBg.stop();
+  else if (!$('screen-title').classList.contains('hidden')) titleBg.start();
+});
+window.addEventListener('resize', () => titleBg.resize());
 showScreen('screen-title');
