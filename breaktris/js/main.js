@@ -10,14 +10,47 @@ const $ = id => document.getElementById(id);
 
 // ---------- Сохранение (для продакшена в Capacitor можно заменить на @capacitor/preferences) ----------
 const KEY = 'kaboomino.v1';
-const save = Object.assign({ stars: [], hints: 3, sound: true, seen: {} }, (() => {
+const save = Object.assign({ best: {}, hints: 3, sound: true, seen: {} }, (() => {
   try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) { return {}; }
 })());
 const persist = () => { try { localStorage.setItem(KEY, JSON.stringify(save)); } catch (e) { /* ignore */ } };
 setSound(save.sound);
 
-const unlockedUpTo = () => { let i = 0; while (i < LEVELS.length && save.stars[i]) i++; return Math.min(i, LEVELS.length - 1); };
-const totalStars = () => save.stars.reduce((a, b) => a + (b || 0), 0);
+// Лучший результат хранится по названию уровня (save.best), чтобы новые уровни можно было
+// вставлять в середину глав. Старые сохранения — массив звёзд по номерам уровней версии
+// с 64 уровнями — переносим по тогдашнему порядку.
+const LEGACY_ORDER_64 = [
+  'First Blast', 'Kitty', 'Crab', 'Arrow', 'Mushroom', 'Sketch', 'Fish', 'Heart',
+  'Dynamite', 'Tower', 'Fuse', 'Bomb', 'Smile', 'Invader', 'Truck', 'Tank',
+  'Napalm', 'Rocket', 'Cactus', 'Flower', 'Campfire', 'Volcano', 'Tree', 'Candle',
+  'Snowman', 'Dragon', 'Steel', 'Shield', 'Anvil', 'Bulldozer', 'Trophy', 'Safe',
+  'Padlock', 'Robot', 'Knight', 'Helmet', 'Castle', 'Turtle', 'Laser', 'Pyramid',
+  'Ladder', 'Bookshelf', 'Burger', 'Skyscraper', 'Spaceship', 'Barcode', 'Rainbow', 'Cake',
+  'Stairs', 'Skull', 'Ghost', 'Frog', 'Ship', 'Crown', 'Whale', 'Car',
+  'Alien', 'Plane', 'Owl', 'Penguin', 'Octopus', 'Castle Siege', 'Dragon King', 'KABOOM',
+];
+if (Array.isArray(save.stars)) {
+  save.stars.forEach((st, i) => {
+    const name = LEGACY_ORDER_64[i];
+    if (st && name) save.best[name] = Math.max(save.best[name] || 0, st);
+  });
+  delete save.stars;
+  persist();
+}
+
+const starsOf = i => save.best[LEVELS[i].name] || 0;
+// Открыты все уровни до последнего пройденного включительно и один следующий,
+// а «Играть» ведёт на первый непройденный — так новые уровни в середине не теряются.
+const maxOpen = () => {
+  let m = 0;
+  LEVELS.forEach((l, i) => { if (save.best[l.name]) m = i + 1; });
+  return Math.min(m, LEVELS.length - 1);
+};
+const firstUnplayed = () => {
+  const i = LEVELS.findIndex(l => !save.best[l.name]);
+  return i < 0 ? LEVELS.length - 1 : i;
+};
+const totalStars = () => LEVELS.reduce((a, l) => a + (save.best[l.name] || 0), 0);
 
 // ---------- Утилиты UI ----------
 let toastTimer = 0;
@@ -118,10 +151,10 @@ function onHud(s) {
 function updateHintBadge() { $('hint-count').textContent = save.hints; }
 
 function onWin(res) {
-  const prev = save.stars[current] || 0;
+  const prev = starsOf(current);
   let bonus = '';
   if (res.stars === 3 && prev < 3) { save.hints++; bonus = '+1 hint for ★★★'; }
-  save.stars[current] = Math.max(prev, res.stars);
+  save.best[LEVELS[current].name] = Math.max(prev, res.stars);
   persist();
   updateHintBadge();
   const last = current >= LEVELS.length - 1;
@@ -207,17 +240,18 @@ function openLevels() {
   showScreen('screen-levels');
   $('total-stars').textContent = `★ ${totalStars()} / ${LEVELS.length * 3}`;
   const grid = $('level-grid');
-  const open = unlockedUpTo();
+  const open = maxOpen();
+  const next = firstUnplayed();
   grid.innerHTML = LEVELS.map((d, i) => {
-    const st = save.stars[i] || 0;
+    const st = starsOf(i);
     const locked = i > open;
     const stars = [0, 1, 2].map(k => `<span class="${k < st ? '' : 'off'}">★</span>`).join('');
     const head = d.chapter ? `<div class="chapter"><span>${d.chapter}</span></div>` : '';
-    return `${head}<button class="lv ${locked ? 'locked' : ''} ${i === open && !st ? 'next' : ''}" data-i="${i}" ${locked ? 'disabled' : ''}>
+    return `${head}<button class="lv ${locked ? 'locked' : ''} ${i === next && !st ? 'next' : ''}" data-i="${i}" ${locked ? 'disabled' : ''}>
       ${i + 1}<small>${locked ? '' : stars}</small></button>`;
   }).join('');
   // прокрутим к текущему уровню
-  const cur = grid.querySelector(`[data-i="${open}"]`);
+  const cur = grid.querySelector(`[data-i="${next}"]`);
   if (cur) grid.scrollTop = Math.max(0, cur.offsetTop - grid.offsetTop - grid.clientHeight / 2 + cur.offsetHeight / 2);
   grid.onclick = e => {
     const b = e.target.closest('.lv');
@@ -228,7 +262,7 @@ function openLevels() {
 }
 
 // ---------- Кнопки ----------
-$('btn-play').onclick = () => { unlockAudio(); sfx.click(); startLevel(unlockedUpTo()); };
+$('btn-play').onclick = () => { unlockAudio(); sfx.click(); startLevel(firstUnplayed()); };
 $('btn-levels').onclick = () => { unlockAudio(); sfx.click(); openLevels(); };
 $('btn-levels-back').onclick = () => { sfx.click(); titleBg = new TitleBg($('title-bg'));
 document.addEventListener('visibilitychange', () => {
