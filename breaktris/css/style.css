@@ -115,7 +115,24 @@ button {
 .logo { font-weight: 900; font-size: min(13.5vw, 64px); line-height: 1; letter-spacing: -1px; text-align: center; white-space: nowrap; transform: rotate(-4deg); }
 .logo .l1 { color: #ffd23f; text-shadow: 0 4px 0 #e8651a, 0 8px 0 #6e2200; }
 .logo .l2 { color: #ff5ec8; text-shadow: 0 4px 0 #b3237f, 0 8px 0 #540a3c; }
-#title-art { margin: 10px 0 14px; }
+.emblem { margin: 16px 0 12px; }
+#title-art { display: block; }
+/* искра на фитиле бомбы-эмблемы */
+.spark {
+  position: absolute; width: 30px; height: 30px; margin: -15px 0 0 -15px;
+  background: radial-gradient(circle, #fffbe0 0 18%, #ffd23f 30%, rgba(255,138,31,.55) 52%, rgba(255,138,31,0) 70%);
+  clip-path: polygon(50% 0, 60% 38%, 100% 50%, 60% 62%, 50% 100%, 40% 62%, 0 50%, 40% 38%);
+  animation: spark .5s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+.spark::after {
+  content: ''; position: absolute; inset: 22%; border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,240,180,.9), rgba(255,160,40,0) 70%);
+}
+@keyframes spark {
+  from { transform: scale(.75) rotate(0deg); opacity: .8; }
+  to { transform: scale(1.12) rotate(20deg); opacity: 1; }
+}
 
 .btn {
   min-width: 220px; padding: 15px 28px;

@@ -269,17 +269,27 @@ $('btn-hint').onclick = () => {
 document.addEventListener('backbutton', () => openLevels());
 
 // Декор на титульном экране: фигура из эскиза.
+// Эмблема под логотипом: бомба из блоков игры — корпус из обычных блоков, TNT в центре,
+// стальная крышка, фитиль из зарядов и мерцающая искра (CSS).
 (function drawTitleArt() {
   const c = $('title-art');
-  const cell = 22, grid = ['....#', '.####', '#####', '.#####', '...##'];
+  const grid = ['.....f', '....f.', '..SSS..', '.#####.', '###T###', '#######', '.#####.', '..###..'];
+  const cell = Math.round(Math.min(21, Math.max(16, (window.innerHeight - 420) / 11)));
+  const cols = 7, rows = grid.length;
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
-  c.width = 6 * cell * dpr; c.height = 5 * cell * dpr;
-  c.style.width = 6 * cell + 'px'; c.style.height = 5 * cell + 'px';
+  c.width = cols * cell * dpr; c.height = rows * cell * dpr;
+  c.style.width = cols * cell + 'px'; c.style.height = rows * cell + 'px';
   const ctx = c.getContext('2d');
   const spr = buildBlockSprites(Math.round(cell * dpr));
+  const pick = { '#': spr[NORMAL], T: spr[TNT], S: spr[STEEL], f: spr.charge.basic };
+  const s = cell * dpr;
   grid.forEach((row, y) => [...row].forEach((ch, x) => {
-    if (ch === '#') ctx.drawImage(spr[NORMAL], x * cell * dpr, y * cell * dpr, cell * dpr, cell * dpr);
+    if (pick[ch]) ctx.drawImage(pick[ch], x * s, y * s, s, s);
   }));
+  // искра — над верхним звеном фитиля
+  const spark = $('title-spark');
+  spark.style.left = 5.75 * cell + 'px';
+  spark.style.top = 0.1 * cell + 'px';
 })();
 
 titleBg = new TitleBg($('title-bg'));

@@ -6,8 +6,15 @@
   <meta name="theme-color" content="#221d5c">
   <meta name="format-detection" content="telephone=no">
   <title>Kaboomino</title>
+  <meta name="description" content="Tetris in reverse: drag explosive charges onto a shape and blow it up, down to the last block.">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/icon-180.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Kaboomino">
-  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/style.css?v=202609221949">
 </head>
 <body>
   <canvas id="cv"></canvas>
@@ -40,7 +47,7 @@
     <canvas id="title-bg"></canvas>
     <button id="btn-sound" class="round-btn" aria-label="Sound"><svg class="ico-on" viewBox="0 0 24 24"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11" fill="none" stroke-width="2.4" stroke-linecap="round"/></svg><svg class="ico-off" viewBox="0 0 24 24"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M15.5 9.5l5 5M20.5 9.5l-5 5" fill="none" stroke-width="2.4" stroke-linecap="round"/></svg></button>
     <div class="logo"><span class="l1">KABOOM</span><span class="l2">INO</span></div>
-    <canvas id="title-art" width="10" height="10"></canvas>
+    <div class="emblem"><canvas id="title-art" width="10" height="10"></canvas><span class="spark" id="title-spark"></span></div>
     <button id="btn-play" class="btn big">Play</button>
     <button id="btn-levels" class="btn secondary">Levels</button>
   </section>
@@ -60,6 +67,7 @@
   <div id="toast" class="hidden"></div>
   <div id="safe-probe"></div>
 
-  <script type="module" src="js/main.js"></script>
+  <script type="importmap">{"imports":{"./js/audio.js":"./js/audio.js?v=202609221949","./js/fx.js":"./js/fx.js?v=202609221949","./js/game.js":"./js/game.js?v=202609221949","./js/levels.js":"./js/levels.js?v=202609221949","./js/logic.js":"./js/logic.js?v=202609221949","./js/main.js":"./js/main.js?v=202609221949","./js/sprites.js":"./js/sprites.js?v=202609221949","./js/title-bg.js":"./js/title-bg.js?v=202609221949"}}</script>
+  <script type="module" src="js/main.js?v=202609221949"></script>
 </body>
 </html>
