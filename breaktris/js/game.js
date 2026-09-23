@@ -1,6 +1,6 @@
 // Игровая сцена: раскладка, ввод (drag & drop), анимации взрывов, отмена, подсказки.
 import { parseLevel, cloneBoard, canPlace, resolve, anyMove, blocksLeft, solve, NORMAL, TNT, STEEL, ICE } from './logic.js';
-import { buildBlockSprites, buildBubble, buildPuff, buildBackground, makeCanvas, KIND_COLOR } from './sprites.js';
+import { buildBlockSprites, buildBubble, buildPuff, makeCanvas, KIND_COLOR } from './sprites.js';
 import { FX } from './fx.js';
 import { sfx, haptic } from './audio.js';
 
@@ -19,7 +19,8 @@ const SPARK = {
 export class Game {
   constructor(canvas, ui) {
     this.cv = canvas;
-    this.ctx = canvas.getContext('2d', { alpha: false });
+    // канвас прозрачный: под ним CSS-фон с медленно плывущими квадратиками (#game-bg)
+    this.ctx = canvas.getContext('2d');
     this.ui = ui;
     this.fx = new FX();
     this.dpr = 1;
@@ -100,7 +101,6 @@ export class Game {
     this.dpr = Math.min(window.devicePixelRatio || 1, this.fx.quality < 0.7 ? 1.5 : 2);
     this.cv.width = Math.round(W * this.dpr);
     this.cv.height = Math.round(H * this.dpr);
-    this.bg = buildBackground(this.cv.width, this.cv.height);
     if (this.def) this.layout();
     this.requestFrame();
   }
@@ -467,7 +467,7 @@ export class Game {
     const { ctx, dpr } = this;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.globalAlpha = 1;
-    ctx.drawImage(this.bg, 0, 0);
+    ctx.clearRect(0, 0, this.cv.width, this.cv.height);
     if (!this.def) return;
     const [sx, sy] = this.fx.shakeOffset();
     ctx.setTransform(dpr, 0, 0, dpr, sx * dpr, sy * dpr);

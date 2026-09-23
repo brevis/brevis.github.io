@@ -29,7 +29,22 @@ html, body {
   overscroll-behavior: none;
 }
 
-#cv { position: fixed; left: 0; top: 0; display: block; touch-action: none; }
+#cv { position: fixed; left: 0; top: 0; z-index: 1; display: block; touch-action: none; }
+
+/* Фон игры: градиент + два слоя квадратиков, которые медленно плывут вверх и мерцают.
+   Анимируются только transform/opacity — это делает композитор, JS в кадре не нужен. */
+#game-bg {
+  position: fixed; inset: 0; z-index: 0; overflow: hidden; pointer-events: none;
+  background:
+    radial-gradient(ellipse 70% 60% at 50% 42%, rgba(150, 130, 255, .22), rgba(150, 130, 255, 0) 70%),
+    linear-gradient(#2c2674, #1e1a55 55%, #130f36);
+}
+#game-bg i { position: absolute; left: 0; top: 0; width: 1px; height: 1px; will-change: transform; }
+#game-bg .s1 { animation: stars-drift 150s linear infinite; }
+#game-bg .s2 { animation: stars-drift 95s linear infinite, stars-twinkle 7s ease-in-out infinite alternate; }
+@keyframes stars-drift { to { transform: translate3d(0, calc(var(--h, 800px) * -1), 0); } }
+@keyframes stars-twinkle { from { opacity: .45; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { #game-bg i { animation: none !important; } }
 
 .hidden { display: none !important; }
 

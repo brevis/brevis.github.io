@@ -15,7 +15,7 @@ export function makeCanvas(w, h) {
   return c;
 }
 
-// Детерминированный rng: пузырьки в шарах и звёзды на фоне одинаковые при каждой отрисовке.
+// Детерминированный rng: пузырьки в шарах одинаковые при каждой отрисовке.
 function rng(seed) { return () => ((seed = (seed * 16807) % 2147483647) / 2147483647); }
 
 const ENERGY = {
@@ -301,28 +301,5 @@ export function buildBubble(px, charge, blockSprites) {
   ctx.beginPath();
   ctx.ellipse(r * 0.66, r * 0.42, r * 0.4, r * 0.17, -0.6, 0, Math.PI * 2);
   ctx.fill();
-  return c;
-}
-
-export function buildBackground(w, h) {
-  const c = makeCanvas(w, h);
-  const ctx = c.getContext('2d');
-  const base = ctx.createLinearGradient(0, 0, 0, h);
-  base.addColorStop(0, '#2c2674');
-  base.addColorStop(0.55, '#1e1a55');
-  base.addColorStop(1, '#130f36');
-  ctx.fillStyle = base;
-  ctx.fillRect(0, 0, w, h);
-  const g = ctx.createRadialGradient(w / 2, h * 0.42, 0, w / 2, h * 0.42, Math.max(w, h) * 0.6);
-  g.addColorStop(0, 'rgba(150,130,255,0.22)');
-  g.addColorStop(1, 'rgba(150,130,255,0)');
-  ctx.fillStyle = g;
-  ctx.fillRect(0, 0, w, h);
-  const r = rng(11), u = Math.max(1, w / 400);
-  for (let i = 0; i < 70; i++) {
-    ctx.fillStyle = `rgba(255,255,255,${0.04 + r() * 0.1})`;
-    const d = u * (1 + r() * 1.6);
-    ctx.fillRect(r() * w, r() * h, d, d);
-  }
   return c;
 }

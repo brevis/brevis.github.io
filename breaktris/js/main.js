@@ -106,13 +106,33 @@ function fitCanvas() {
   cv.style.height = window.innerHeight + 'px';
 }
 fitCanvas();
+
+// Квадратики на фоне: box-shadow одного крошечного элемента, узор повторён дважды по высоте,
+// слой едет вверх на высоту экрана и начинает заново — шва не видно.
+function buildStars() {
+  const W = window.innerWidth, H = window.innerHeight;
+  const layer = (el, count, min, max, a0, a1) => {
+    const shadows = [];
+    for (let i = 0; i < count; i++) {
+      const x = Math.round(Math.random() * W), y = Math.round(Math.random() * H);
+      const spread = (min + Math.random() * (max - min)).toFixed(1);
+      const a = (a0 + Math.random() * (a1 - a0)).toFixed(3);
+      for (const dy of [0, H]) shadows.push(`${x}px ${y + dy}px 0 ${spread}px rgba(255,255,255,${a})`);
+    }
+    el.style.boxShadow = shadows.join(',');
+    el.style.setProperty('--h', H + 'px');
+  };
+  layer(document.querySelector('#game-bg .s1'), Math.round(W * H / 5500), 0.5, 1, 0.04, 0.11);
+  layer(document.querySelector('#game-bg .s2'), Math.round(W * H / 11000), 1, 1.8, 0.07, 0.15);
+}
+buildStars();
 const game = new Game(cv, ui);
 window.__kb = { game, save, startLevel: i => startLevel(i) }; // для отладки из консоли
 
 let resizeRaf = 0;
 window.addEventListener('resize', () => {
   cancelAnimationFrame(resizeRaf);
-  resizeRaf = requestAnimationFrame(() => { fitCanvas(); game.resize(); });
+  resizeRaf = requestAnimationFrame(() => { fitCanvas(); buildStars(); game.resize(); });
 });
 
 let current = 0;
