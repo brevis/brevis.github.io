@@ -10,9 +10,11 @@ const $ = id => document.getElementById(id);
 
 // ---------- Сохранение (для продакшена в Capacitor можно заменить на @capacitor/preferences) ----------
 const KEY = 'kaboomino.v1';
-const save = Object.assign({ best: {}, hints: 3, sound: true, seen: {} }, (() => {
-  try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) { return {}; }
-})());
+const loaded = (() => {
+  try { return JSON.parse(localStorage.getItem(KEY)); } catch (e) { return null; }
+})();
+const freshSave = !loaded;
+const save = Object.assign({ best: {}, hints: 3, sound: true, seen: {} }, loaded || {});
 const persist = () => { try { localStorage.setItem(KEY, JSON.stringify(save)); } catch (e) { /* ignore */ } };
 setSound(save.sound);
 
@@ -327,10 +329,47 @@ document.addEventListener('backbutton', () => openLevels());
   spark.style.top = 0.1 * cell + 'px';
 })();
 
+// ---------- Ежедневный бонус: +1 подсказка за первый заход в день ----------
+const localDay = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
+function checkDailyBonus() {
+  const day = localDay();
+  if (save.lastDaily === day) return;
+  const firstLaunch = freshSave && !save.lastDaily;
+  save.lastDaily = day;
+  // совсем новому игроку в первый день не мешаем: у него и так стартовые подсказки
+  if (!firstLaunch) {
+    save.hints++;
+    updateHintBadge();
+    announceDaily();
+  }
+  persist();
+}
+
+function announceDaily() {
+  const onTitle = !$('screen-title').classList.contains('hidden');
+  if (!onTitle || !$('modal').classList.contains('hidden')) { toast('Daily bonus: +1 hint 💡'); return; }
+  openModal(`
+    <div class="kicker">Daily bonus</div>
+    <div class="daily-icon"><svg viewBox="0 0 24 24"><path d="M12 3a6.5 6.5 0 0 0-3.8 11.8c.5.4.8 1 .8 1.6V17h6v-.6c0-.6.3-1.2.8-1.6A6.5 6.5 0 0 0 12 3Z"/><rect x="9" y="18.5" width="6" height="2.5" rx="1"/></svg></div>
+    <h3>+1 hint</h3>
+    <p>Thanks for dropping by! You now have ${save.hints} ${save.hints === 1 ? 'hint' : 'hints'}. Come back tomorrow for another one.</p>
+    <div class="btns"><button class="btn big" data-a="ok">Nice!</button></div>`, card => {
+    card.querySelector('[data-a=ok]').onclick = () => { unlockAudio(); sfx.star(2); closeModal(); };
+  });
+}
+
 titleBg = new TitleBg($('title-bg'));
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) titleBg.stop();
-  else if (!$('screen-title').classList.contains('hidden')) titleBg.start();
+  else {
+    if (!$('screen-title').classList.contains('hidden')) titleBg.start();
+    checkDailyBonus(); // приложение могло пролежать в фоне до следующего дня
+  }
 });
 window.addEventListener('resize', () => titleBg.resize());
 showScreen('screen-title');
+checkDailyBonus();
