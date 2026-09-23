@@ -409,8 +409,8 @@ const Player = {
     const [dir, flip] = this.facing(p.aim);
     let frame = 'idle', bob = Math.sin(G.time * 3) * 0.8;
     if (p.moving) {
-      let f = Math.floor(p.runDist / 15) % 6;
-      if (p.vx * Math.cos(p.aim) + p.vy * Math.sin(p.aim) < -0.3 * Math.hypot(p.vx, p.vy)) f = 5 - f; // backpedal
+      let f = Math.floor(p.runDist / 8) % 12;
+      if (p.vx * Math.cos(p.aim) + p.vy * Math.sin(p.aim) < -0.3 * Math.hypot(p.vx, p.vy)) f = 11 - f; // backpedal
       frame = f; bob = 0;
     }
     const name = `pl_${dir}_${frame}`;

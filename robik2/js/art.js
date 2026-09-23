@@ -6,7 +6,7 @@ const Art = {
     'drock2', 'drone', 'empcell', 'gate', 'gem', 'heal_pad', 'keycard', 'medkit', 'mine', 'nest', 'palm', 'pillar', 'pillar_broken', 'pine',
     'player_body', 'player_gun', 'pod', 'pylon', 'rock1', 'rock2', 'rock3', 'spitter', 'tex_dirt', 'tex_grass', 'tex_metal', 'tex_rock',
     'tex_sand', 'tex_stone', 'tex_water', 'tower', 'tree1', 'tree2', 'tree3', 'turret_base', 'turret_gun',
-    ...['s', 'se', 'e', 'ne', 'n'].flatMap((d) => ['idle', 0, 1, 2, 3, 4, 5].map((f) => `pl_${d}_${f}`))],
+    ...['s', 'se', 'e', 'ne', 'n'].flatMap((d) => ['idle', 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map((f) => `pl_${d}_${f}`))],
   img: {}, cache: {}, ready: false,
 
   load(done) {
