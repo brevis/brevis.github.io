@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>РОБИК — Планета Зеро</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@400;600;800&family=Russo+One&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body class="menu">
+<canvas id="game"></canvas>
+
+<div id="hud" class="hidden">
+  <div id="quest" class="panel">
+    <div class="q-head"><span class="q-tag">ЗАДАЧА</span><span class="q-title"></span></div>
+    <ul class="q-list"></ul>
+  </div>
+
+  <div id="minimap-wrap" class="panel">
+    <canvas id="minimap" width="220" height="165"></canvas>
+    <div class="mm-label">СКАНЕР · <span id="mm-zone">ЛУГ</span></div>
+  </div>
+
+  <div id="bossbar" class="hidden">
+    <div class="bb-name">КОЛОСС <span>— ХРАНИТЕЛЬ РУИН</span></div>
+    <div class="bb-track"><div class="bb-lag"></div><div class="bb-fill"></div><i style="left:33.3%"></i><i style="left:66.6%"></i></div>
+  </div>
+
+  <div id="eventbar" class="hidden">
+    <div class="ev-label">ЗАРЯДКА РЕТРАНСЛЯТОРА</div>
+    <div class="ev-track"><div class="ev-fill"></div></div>
+    <div class="ev-sub"><span class="ev-time"></span><span class="ev-hp"></span></div>
+  </div>
+
+  <div id="status" class="panel">
+    <div class="hp-row">
+      <div class="hp-label">КОРПУС</div>
+      <div class="hp-track"><div class="hp-lag"></div><div class="hp-fill"></div></div>
+      <div class="hp-num">100</div>
+    </div>
+    <div class="abil-row">
+      <div class="abil" id="ab-dash"><div class="abil-ring"></div><div class="abil-icon"><img src="assets/ic_dash.webp" alt="" onerror="this.parentNode.textContent='➟'"></div><div class="abil-key">ПРОБЕЛ</div></div>
+      <div class="abil" id="ab-emp"><div class="abil-ring"></div><div class="abil-icon"><img src="assets/ic_emp.webp" alt="" onerror="this.parentNode.textContent='◉'"></div><div class="abil-key">Q</div></div>
+      <div class="lvl-box"><div class="lvl-label">УРОВЕНЬ</div><div class="lvl-num">1</div></div>
+    </div>
+  </div>
+
+  <div id="xpbar"><div class="xp-fill"></div></div>
+  <div id="combo"><div class="combo-num"></div><div class="combo-label">КОМБО</div></div>
+
+  <div id="dialog" class="hidden">
+    <div class="d-portrait"><div class="d-eye"></div></div>
+    <div class="d-body"><div class="d-name"></div><div class="d-text"></div></div>
+  </div>
+
+  <div id="banner"><div class="bn-title"></div><div class="bn-sub"></div></div>
+  <div id="hurt"></div>
+</div>
+
+<div id="screen-title" class="screen">
+  <div class="title-wrap">
+    <div class="title-kicker">ДЕМО-УРОВЕНЬ · ПЛАНЕТА ЗЕРО</div>
+    <h1 class="title-logo" data-text="РОБИК">РОБИК</h1>
+    <div class="title-sub">Робот-разведчик потерпел крушение на чужой планете.<br>Найди энергию, пробейся через пустыню и разбуди Хранителя руин.</div>
+    <button id="btn-start" class="btn-main" disabled>ГЕНЕРАЦИЯ МИРА…</button>
+    <div class="controls">
+      <div><kbd>W A S D</kbd><span>движение</span></div>
+      <div><kbd>ЛКМ</kbd><span>огонь (зажать)</span></div>
+      <div><kbd>ПРОБЕЛ</kbd><span>рывок — неуязвимость</span></div>
+      <div><kbd>Q</kbd> / <kbd>ПКМ</kbd><span>ЭМИ-волна</span></div>
+      <div><kbd>E</kbd><span>взаимодействие</span></div>
+      <div><kbd>ESC</kbd> · <kbd>M</kbd><span>пауза · звук</span></div>
+    </div>
+  </div>
+</div>
+
+<div id="screen-boot" class="screen hidden"><pre id="boot-text"></pre><div class="boot-skip">клик — пропустить</div></div>
+
+<div id="screen-levelup" class="screen hidden">
+  <div class="lu-head">
+    <div class="lu-kicker">НОВЫЙ УРОВЕНЬ</div>
+    <div class="lu-level">4</div>
+    <div class="lu-sub">Выбери модуль улучшения · клавиши <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd></div>
+  </div>
+  <div class="cards"></div>
+</div>
+
+<div id="screen-pause" class="screen hidden">
+  <div class="menu-box">
+    <h2>ПАУЗА</h2>
+    <div class="pause-build"></div>
+    <button class="btn-main" data-act="resume">ПРОДОЛЖИТЬ</button>
+    <button class="btn-sec" data-act="sound">ЗВУК: ВКЛ</button>
+    <button class="btn-sec" data-act="restart">НАЧАТЬ ЗАНОВО</button>
+  </div>
+</div>
+
+<div id="screen-dead" class="screen hidden">
+  <div class="dead-title">СИСТЕМА ОТКАЗАЛА</div>
+  <div class="dead-sub">Перезагрузка с контрольной точки…</div>
+</div>
+
+<div id="screen-win" class="screen hidden">
+  <div class="menu-box win-box">
+    <div class="win-kicker">ДЕМО ПРОЙДЕНО</div>
+    <div class="win-rank"><span class="rank-letter">S</span><span class="rank-label">РАНГ</span></div>
+    <div class="win-stats"></div>
+    <div class="win-tease">Ядро Хранителя содержит карту всей планеты.<br>Продолжение следует…</div>
+    <button class="btn-main" data-act="restart">СЫГРАТЬ ЕЩЁ РАЗ</button>
+  </div>
+</div>
+
+<div id="fade"></div>
+
+<script src="js/util.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/art.js"></script>
+<script src="js/textures.js"></script>
+<script src="js/world.js"></script>
+<script src="js/fx.js"></script>
+<script src="js/player.js"></script>
+<script src="js/enemies.js"></script>
+<script src="js/boss.js"></script>
+<script src="js/props.js"></script>
+<script src="js/quest.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
