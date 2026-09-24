@@ -186,7 +186,7 @@ function animateScore(target) {
   if (target < shownScore) { shownScore = target; el.textContent = fmt(target); return; }
   const from = shownScore, t0 = performance.now();
   const step = now => {
-    const k = Math.min(1, (now - t0) / 450);
+    const k = Math.max(0, Math.min(1, (now - t0) / 450)); // метка кадра rAF бывает чуть раньше t0
     shownScore = Math.round(from + (target - from) * (1 - (1 - k) * (1 - k)));
     el.textContent = fmt(shownScore);
     if (k < 1) scoreRaf = requestAnimationFrame(step);

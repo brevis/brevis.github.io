@@ -5,6 +5,7 @@ import { FX } from './fx.js';
 import { sfx, haptic } from './audio.js';
 
 const WAVE_GAP = 0.11;
+const COL_MAX = 520; // ширина игровой колонки на десктопе (должна совпадать с --col в CSS)
 // Очки: блок — 10, в волнах цепочки дороже, обвалившийся блок — 15.
 // Ходы подряд с большим взрывом (6+ блоков) дают комбо-множитель.
 const PTS_BLOCK = 10, PTS_FALL = 15, BIG_MOVE = 6;
@@ -123,6 +124,9 @@ export class Game {
   resize() {
     const W = window.innerWidth, H = window.innerHeight;
     this.W = W; this.H = H;
+    // на широких экранах игра живёт в центральной колонке шириной с телефон
+    this.colW = Math.min(W, COL_MAX);
+    this.colX = Math.round((W - this.colW) / 2);
     this.dpr = Math.min(window.devicePixelRatio || 1, this.fx.quality < 0.7 ? 1.5 : 2);
     this.cv.width = Math.round(W * this.dpr);
     this.cv.height = Math.round(H * this.dpr);
@@ -137,7 +141,7 @@ export class Game {
     const rows = n > 4 ? 2 : 1;
     const perRow = Math.ceil(n / rows);
     const pad = 12;
-    const slotW = (W - pad * 2) / Math.max(perRow, 3);
+    const slotW = (this.colW - pad * 2) / Math.max(perRow, 3);
     const slotH = Math.round(Math.min(84, slotW * 0.9));
     const safeBottom = this.ui.safeBottom();
     const trayH = rows * slotH + 26 + safeBottom;
@@ -155,7 +159,7 @@ export class Game {
     const top = this.ui.hudBottom() + 14;
     const bottom = trayTop - 22;
     const { w, h } = this.board;
-    const cell = Math.floor(Math.min((W - 28) / w, (bottom - top) / h, 64));
+    const cell = Math.floor(Math.min((this.colW - 28) / w, (bottom - top) / h, 64));
     this.cell = cell;
     this.bx = Math.round((W - w * cell) / 2);
     this.by = Math.round(top + (bottom - top - h * cell) / 2);
@@ -327,7 +331,7 @@ export class Game {
 
     if (t === 0 && ch.kind === 'laser') {
       const rows = new Set(ch.cells.map(([, y]) => oy + y));
-      for (const y of rows) fx.flash(0, by + y * c + c * 0.2, this.W, c * 0.6, '#9ff0ff', 0.3);
+      for (const y of rows) fx.flash(this.colX, by + y * c + c * 0.2, this.colW, c * 0.6, '#9ff0ff', 0.3);
       sfx.laser();
     }
     if (t === 1 && ch.kind === 'fire') sfx.fire();
@@ -399,7 +403,7 @@ export class Game {
     const my = this.by + this.board.h * this.cell / 2;
     // выкрики нарастают вместе с силой взрыва
     const tilt = (Math.random() - 0.5) * 0.18;
-    const big = Math.min(34, this.W / 11);
+    const big = Math.min(34, this.colW / 11);
     if (stats.fell >= 3) this.fx.text(`COLLAPSE! +${stats.fell}`, mx, my - 30, { color: '#8fe8ff', size: big, tilt });
     else if (stats.tnt >= 2) this.fx.text(`CHAIN ×${stats.tnt}!`, mx, my - 30, { color: '#ffcf4a', size: big, tilt });
     else if (stats.destroyed >= 16) this.fx.text('INSANE!', mx, my - 30, { color: '#ff5ec8', size: big + 6, tilt });
@@ -661,7 +665,7 @@ export class Game {
   drawTray() {
     const ctx = this.ctx;
     // панель лотка, уходит за нижний край экрана
-    rrectPath(ctx, 6, this.trayTop, this.W - 12, this.H - this.trayTop + 40, 26);
+    rrectPath(ctx, this.colX + 6, this.trayTop, this.colW - 12, this.H - this.trayTop + 40, 26);
     const g = ctx.createLinearGradient(0, this.trayTop, 0, this.H);
     g.addColorStop(0, 'rgba(18,14,58,0.78)');
     g.addColorStop(1, 'rgba(10,8,34,0.9)');
