@@ -64,6 +64,36 @@ export class FX {
     }
   }
 
+  // Обвал: целый блок срывается, чуть подпрыгивает и падает вниз, кувыркаясь.
+  fall(sprite, x, y, c, delay = 0) {
+    const p = this._get();
+    p.t = -delay; p.kind = 3; p.img = sprite;
+    p.x = x + c / 2; p.y = y + c / 2; p.size = c;
+    p.vx = (Math.random() - 0.5) * 90; p.vy = -120 - Math.random() * 120;
+    p.rot = 0; p.vr = (Math.random() - 0.5) * 6;
+    p.life = 1.3;
+    this.parts.push(p);
+  }
+
+  // Конфетти на финальном взрыве: цветные бумажки кружатся и медленно оседают.
+  confetti(x, y, count) {
+    const colors = ['#ffd23f', '#ff5ec8', '#45e6ff', '#7dffb0', '#ff8a2a', '#ffffff'];
+    const n = Math.round(count * Math.max(0.5, this.quality));
+    for (let k = 0; k < n; k++) {
+      const a = -Math.PI / 2 + (Math.random() - 0.5) * 2.4;
+      const sp = 300 + Math.random() * 520;
+      const p = this._get();
+      p.t = 0; p.kind = 4;
+      p.x = x; p.y = y;
+      p.vx = Math.cos(a) * sp; p.vy = Math.sin(a) * sp;
+      p.size = 5 + Math.random() * 5;
+      p.rot = Math.random() * 6; p.vr = (Math.random() - 0.5) * 14;
+      p.color = colors[(Math.random() * colors.length) | 0];
+      p.life = 1.6 + Math.random() * 0.9;
+      this.parts.push(p);
+    }
+  }
+
   smoke(puff, x, y, size) {
     if (this.quality < 0.5) return;
     const p = this._get();
@@ -84,7 +114,7 @@ export class FX {
   }
 
   text(str, x, y, opts = {}) {
-    this.texts.push({ str, x, y, t: 0, life: opts.life || 1.1, size: opts.size || 26, color: opts.color || '#fff', rise: opts.rise ?? 50 });
+    this.texts.push({ str, x, y, t: 0, life: opts.life || 1.1, size: opts.size || 26, color: opts.color || '#fff', rise: opts.rise ?? 50, tilt: opts.tilt || 0 });
   }
 
   shake(amp, dur = 0.3) {
@@ -107,7 +137,10 @@ export class FX {
       const p = parts[i];
       p.t += dt;
       if (p.t >= p.life) { parts[i] = parts[parts.length - 1]; parts.pop(); this.pool.push(p); continue; }
+      if (p.t < 0) continue;
       if (p.kind === 2) { p.x += p.vx * dt; p.y += p.vy * dt; continue; }
+      if (p.kind === 3) { p.vy += 1500 * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.rot += p.vr * dt; continue; }
+      if (p.kind === 4) { p.vy += 520 * dt; p.vx *= 0.97; p.vy *= 0.975; p.x += p.vx * dt + Math.sin(p.t * 9 + p.rot) * 30 * dt; p.y += p.vy * dt; p.rot += p.vr * dt; continue; }
       p.vy += g * dt;
       p.x += p.vx * dt; p.y += p.vy * dt;
       if (p.kind === 0) p.rot += p.vr * dt;
@@ -138,7 +171,26 @@ export class FX {
 
   drawFront(ctx, dpr, ox, oy) {
     for (const p of this.parts) {
+      if (p.t < 0) {
+        if (p.kind === 3) { ctx.setTransform(dpr, 0, 0, dpr, ox * dpr, oy * dpr); ctx.globalAlpha = 1; ctx.drawImage(p.img, p.x - p.size / 2, p.y - p.size / 2, p.size, p.size); }
+        continue;
+      }
       const k = p.t / p.life;
+      if (p.kind === 3) {
+        ctx.globalAlpha = k > 0.75 ? (1 - k) / 0.25 : 1;
+        const c = Math.cos(p.rot), s = Math.sin(p.rot);
+        ctx.setTransform(c * dpr, s * dpr, -s * dpr, c * dpr, (p.x + ox) * dpr, (p.y + oy) * dpr);
+        ctx.drawImage(p.img, -p.size / 2, -p.size / 2, p.size, p.size);
+        continue;
+      }
+      if (p.kind === 4) {
+        ctx.globalAlpha = k > 0.8 ? (1 - k) / 0.2 : 1;
+        const c = Math.cos(p.rot), s = Math.sin(p.rot);
+        ctx.setTransform(c * dpr, s * dpr, -s * dpr, c * dpr, (p.x + ox) * dpr, (p.y + oy) * dpr);
+        ctx.fillStyle = p.color;
+        ctx.fillRect(-p.size / 2, -p.size * 0.3, p.size, p.size * 0.6);
+        continue;
+      }
       if (p.kind === 0) {
         ctx.globalAlpha = k > 0.6 ? (1 - k) / 0.4 : 1;
         const c = Math.cos(p.rot), s = Math.sin(p.rot);
@@ -174,13 +226,17 @@ export class FX {
       const pop = k < 0.12 ? 0.6 + (k / 0.12) * 0.55 : k < 0.2 ? 1.15 - (k - 0.12) / 0.08 * 0.15 : 1;
       ctx.globalAlpha = k > 0.7 ? (1 - k) / 0.3 : 1;
       const size = Math.round(t.size * pop);
-      ctx.font = `900 ${size}px system-ui, -apple-system, Roboto, sans-serif`;
+      ctx.font = `700 ${size}px Fredoka, system-ui, -apple-system, Roboto, sans-serif`;
       const y = t.y - t.rise * Math.min(1, k * 1.5);
+      ctx.save();
+      ctx.translate(t.x, y);
+      if (t.tilt) ctx.rotate(t.tilt);
       ctx.lineWidth = Math.max(3, size * 0.18);
       ctx.strokeStyle = 'rgba(30,10,40,0.85)';
-      ctx.strokeText(t.str, t.x, y);
+      ctx.strokeText(t.str, 0, 0);
       ctx.fillStyle = t.color;
-      ctx.fillText(t.str, t.x, y);
+      ctx.fillText(t.str, 0, 0);
+      ctx.restore();
     }
     ctx.globalAlpha = 1;
   }

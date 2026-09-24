@@ -303,3 +303,32 @@ export function buildBubble(px, charge, blockSprites) {
   ctx.fill();
   return c;
 }
+
+// Заряд в лотке: сама фигура, без пузыря. Подсказки спецзарядов остаются:
+// лазер — лучи через ячейку, напалм — подсвеченные соседи.
+export function buildTrayPiece(w, h, charge, blockSprites, m) {
+  const c = makeCanvas(w, h);
+  const ctx = c.getContext('2d');
+  const ox = (w - charge.w * m) / 2, oy = (h - charge.h * m) / 2;
+  if (charge.kind === 'laser') {
+    ctx.fillStyle = 'rgba(69,230,255,0.45)';
+    const rows = new Set(charge.cells.map(c => c[1]));
+    for (const y of rows) ctx.fillRect(w * 0.04, oy + y * m + m * 0.4, w * 0.92, m * 0.2);
+  }
+  if (charge.kind === 'fire') {
+    ctx.fillStyle = 'rgba(255,138,42,0.32)';
+    for (const [x, y] of charge.cells) {
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        if (charge.cells.some(([a, b]) => a === x + dx && b === y + dy)) continue;
+        rrect(ctx, ox + (x + dx) * m + m * 0.12, oy + (y + dy) * m + m * 0.12, m * 0.76, m * 0.76, m * 0.18);
+        ctx.fill();
+      }
+    }
+  }
+  // мягкая тень под фигурой
+  ctx.fillStyle = 'rgba(0,0,0,0.35)';
+  for (const [x, y] of charge.cells) { rrect(ctx, ox + x * m + m * 0.04, oy + y * m + m * 0.14, m * 0.92, m * 0.92, m * 0.2); ctx.fill(); }
+  const spr = blockSprites.charge[charge.kind];
+  for (const [x, y] of charge.cells) ctx.drawImage(spr, ox + x * m, oy + y * m, m, m);
+  return c;
+}

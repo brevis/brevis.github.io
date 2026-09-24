@@ -1,12 +1,26 @@
 // Игровая сцена: раскладка, ввод (drag & drop), анимации взрывов, отмена, подсказки.
 import { parseLevel, cloneBoard, canPlace, resolve, anyMove, blocksLeft, solve, NORMAL, TNT, STEEL, ICE } from './logic.js';
-import { buildBlockSprites, buildBubble, buildPuff, makeCanvas, KIND_COLOR } from './sprites.js';
+import { buildBlockSprites, buildTrayPiece, buildPuff, makeCanvas, KIND_COLOR } from './sprites.js';
 import { FX } from './fx.js';
 import { sfx, haptic } from './audio.js';
 
 const WAVE_GAP = 0.11;
+// Очки: блок — 10, в волнах цепочки дороже, обвалившийся блок — 15.
+// Ходы подряд с большим взрывом (6+ блоков) дают комбо-множитель.
+const PTS_BLOCK = 10, PTS_FALL = 15, BIG_MOVE = 6;
+const PTS_SPARE = 100, PTS_PERFECT = 250;
 const FUSE = 0.09;
 const EASE = t => 1 - (1 - t) * (1 - t);
+const backOut = t => { const c = 1.7; return 1 + (c + 1) * Math.pow(t - 1, 3) + c * Math.pow(t - 1, 2); };
+function rrectPath(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
 const SPARK = {
   basic: ['#fff6c8', '#ffd24a', '#ff9f2e', '#ffffff'],
   fire: ['#ffe08a', '#ff8a2a', '#ff4d1a', '#fff'],
@@ -33,6 +47,12 @@ export class Game {
     this.landing = null;
     this.frameTimes = [];
     this.def = null;
+    this.hitstop = 0;     // короткий стоп-кадр на больших взрывах
+    this.slowT = 0;       // замедление на финальном взрыве (реальные секунды)
+    this.punch = 0;       // толчок камеры
+    this.score = 0;
+    this.streak = 0;
+    this.blitz = null;    // { time, total, cleared } в режиме Blitz
     this.tick = this.tick.bind(this);
     this.bindInput();
     this.resize();
@@ -57,6 +77,10 @@ export class Game {
     this.drag = this.back = this.hint = this.landing = null;
     this.timers = [];
     this.fx = Object.assign(new FX(), { quality: this.fx.quality });
+    this.loadTime = this.time;
+    this.score = 0;
+    this.streak = 0;
+    this.hitstop = this.slowT = this.punch = 0;
     this.layout();
     this.emitHud();
     this.requestFrame();
@@ -89,6 +113,7 @@ export class Game {
       total: this.charges.length,
       progress: 1 - left / this.total,
       canUndo: this.history.length > 0 && !this.busy,
+      score: this.blitz ? this.blitz.total + this.score : this.score,
     });
   }
 
@@ -107,21 +132,24 @@ export class Game {
 
   layout() {
     const { W, H, dpr } = this;
+    // лоток: тёмная панель внизу, заряды лежат прямо на ней крупными фигурами
     const n = this.charges.length;
-    const rows = n > 5 ? 2 : 1;
+    const rows = n > 4 ? 2 : 1;
     const perRow = Math.ceil(n / rows);
-    const slot = Math.min(96, (W - 16) / Math.max(perRow, 3));
-    const D = Math.round(Math.min(86, slot * 0.92));
+    const pad = 12;
+    const slotW = (W - pad * 2) / Math.max(perRow, 3);
+    const slotH = Math.round(Math.min(84, slotW * 0.9));
     const safeBottom = this.ui.safeBottom();
-    const trayH = rows * (D + 6) + 20 + safeBottom;
+    const trayH = rows * slotH + 26 + safeBottom;
     const trayTop = H - trayH;
     this.slots = this.charges.map((_, i) => {
       const row = Math.floor(i / perRow);
       const inRow = row === rows - 1 ? n - perRow * (rows - 1) : perRow;
       const col = i - row * perRow;
-      return { x: W / 2 + (col - (inRow - 1) / 2) * slot, y: trayTop + 10 + row * (D + 6) + D / 2, r: slot / 2 };
+      return { x: W / 2 + (col - (inRow - 1) / 2) * slotW, y: trayTop + 16 + row * slotH + slotH / 2, w: slotW, h: slotH };
     });
-    this.D = D;
+    this.D = slotH * 0.9;
+    this.slotW = slotW; this.slotH = slotH;
     this.trayTop = trayTop;
 
     const top = this.ui.hudBottom() + 14;
@@ -133,7 +161,8 @@ export class Game {
     this.by = Math.round(top + (bottom - top - h * cell) / 2);
 
     this.sprites = buildBlockSprites(Math.round(cell * dpr));
-    this.bubbles = this.charges.map(ch => buildBubble(Math.round(D * dpr), ch, this.sprites));
+    this.trayCells = this.charges.map(ch => Math.min(this.slotW * 0.8 / ch.w, this.slotH * 0.78 / Math.max(ch.h, 2), cell * 0.66, 26));
+    this.trayPieces = this.charges.map((ch, k) => buildTrayPiece(Math.round(this.slotW * dpr), Math.round(this.slotH * dpr), ch, this.sprites, this.trayCells[k] * dpr));
     this.puff = buildPuff(Math.round(48 * dpr), '96,90,150');
     this.glow = buildPuff(Math.round(48 * dpr), '255,200,120');
     this.boardCache = makeCanvas(w * cell * dpr, h * cell * dpr);
@@ -178,7 +207,7 @@ export class Game {
     for (let k = 0; k < this.slots.length; k++) {
       if (this.used[k]) continue;
       const s = this.slots[k];
-      if (Math.hypot(x - s.x, y - s.y) <= s.r) {
+      if (Math.abs(x - s.x) <= s.w / 2 && Math.abs(y - s.y) <= s.h / 2) {
         this.drag = { k, x, y, t: 0, target: null, preview: null, id: e.pointerId };
         this.back = null;
         this.hint = null;
@@ -260,14 +289,25 @@ export class Game {
     this.busy = true;
     this.hint = null;
     this.landing = { k, x, y, t: 0 };
+    this.punch = Math.min(1, this.punch + 0.15);
     sfx.drop();
     haptic('light');
     this.emitHud();
 
     const waves = [];
     for (const e of r.events) (waves[e.t] || (waves[e.t] = [])).push(e);
-    const stats = { destroyed: 0, tnt: 0, waves: waves.length };
-    for (const e of r.events) { if (e.destroyed) stats.destroyed++; if (e.destroyed && e.type === TNT) stats.tnt++; }
+    const stats = { destroyed: 0, tnt: 0, fell: 0, waves: waves.length, points: 0 };
+    let raw = 0;
+    for (const e of r.events) {
+      if (!e.destroyed) continue;
+      stats.destroyed++;
+      if (e.type === TNT && !e.fell) stats.tnt++;
+      if (e.fell) { stats.fell++; raw += PTS_FALL; } else raw += PTS_BLOCK * (1 + e.t * 0.5);
+    }
+    stats.mult = 1 + 0.5 * this.streak;
+    stats.points = Math.round(raw * stats.mult);
+    stats.cx = this.bx + (x + ch.w / 2) * this.cell;
+    stats.cy = this.by + (y + ch.h / 2) * this.cell;
     waves.forEach((evs, t) => {
       if (evs) this.after(FUSE + t * WAVE_GAP, () => this.applyWave(evs, t, ch, x, y));
     });
@@ -293,6 +333,7 @@ export class Game {
     if (t === 1 && ch.kind === 'fire') sfx.fire();
 
     let destroyed = 0, melted = 0;
+    if (evs[0].fell) { this.applyCollapse(evs); return; }
     for (const e of evs) {
       const x = e.i % w, y = (e.i / w) | 0;
       const px = bx + x * c, py = by + y * c;
@@ -321,11 +362,33 @@ export class Game {
     if (destroyed) {
       fx.ring(cx, cy, c * (1 + Math.sqrt(destroyed) * 0.8), 'rgba(255,240,200,', 0.35, 6);
       fx.shake(Math.min(16, 3 + destroyed * 0.7 + (hasTnt ? 5 : 0)), 0.25 + Math.min(0.25, destroyed * 0.02));
-      sfx.boom(Math.min(1, destroyed / 10 + (hasTnt ? 0.3 : 0)), t);
+      sfx.boom(Math.min(1, destroyed / 10 + (hasTnt ? 0.3 : 0)), t + this.streak);
       haptic(destroyed > 6 || hasTnt ? 'heavy' : 'medium');
+      // большой взрыв — короткий стоп-кадр и толчок камеры
+      if (destroyed >= 6 || hasTnt) this.hitstop = Math.max(this.hitstop, destroyed >= 12 ? 0.09 : 0.06);
+      this.punch = Math.min(1, this.punch + 0.25 + destroyed * 0.04);
     } else {
       fx.shake(3, 0.15);
     }
+    this.renderBoardCache();
+  }
+
+  // Обвал: отрезанные куски срываются и падают (снизу вверх, с небольшой задержкой).
+  applyCollapse(evs) {
+    const { cell: c, bx, by, fx } = this;
+    const w = this.board.w;
+    let maxY = 0;
+    for (const e of evs) maxY = Math.max(maxY, (e.i / w) | 0);
+    for (const e of evs) {
+      const x = e.i % w, y = (e.i / w) | 0;
+      const spr = this.spriteFor(e.i, this.vis[e.i]);
+      this.vis[e.i] = 0;
+      fx.fall(spr, bx + x * c, by + y * c, c, (maxY - y) * 0.035 + Math.random() * 0.04);
+      if ((e.i + y) % 3 === 0) fx.smoke(this.puff, bx + (x + 0.5) * c, by + (y + 0.9) * c, c * 1.4);
+    }
+    fx.shake(Math.min(12, 4 + evs.length * 0.4), 0.35);
+    sfx.collapse(evs.length);
+    haptic('heavy');
     this.renderBoardCache();
   }
 
@@ -334,11 +397,21 @@ export class Game {
     const left = blocksLeft(this.board.hp);
     const mx = this.bx + this.board.w * this.cell / 2;
     const my = this.by + this.board.h * this.cell / 2;
-    if (stats.tnt >= 2) this.fx.text(`CHAIN REACTION ×${stats.tnt}!`, mx, my, { color: '#ffcf4a', size: Math.min(28, this.W / 13) });
-    else if (stats.destroyed >= 10) this.fx.text('MASSIVE!', mx, my, { color: '#ffcf4a', size: 32 });
-    else if (stats.destroyed >= 6) this.fx.text('BOOM!', mx, my, { color: '#fff', size: 26 });
+    // выкрики нарастают вместе с силой взрыва
+    const tilt = (Math.random() - 0.5) * 0.18;
+    const big = Math.min(34, this.W / 11);
+    if (stats.fell >= 3) this.fx.text(`COLLAPSE! +${stats.fell}`, mx, my - 30, { color: '#8fe8ff', size: big, tilt });
+    else if (stats.tnt >= 2) this.fx.text(`CHAIN ×${stats.tnt}!`, mx, my - 30, { color: '#ffcf4a', size: big, tilt });
+    else if (stats.destroyed >= 16) this.fx.text('INSANE!', mx, my - 30, { color: '#ff5ec8', size: big + 6, tilt });
+    else if (stats.destroyed >= 10) this.fx.text('MEGA!', mx, my - 30, { color: '#ffcf4a', size: big + 2, tilt });
+    else if (stats.destroyed >= BIG_MOVE) this.fx.text('BOOM!', mx, my - 30, { color: '#fff', size: big - 4, tilt });
+    // очки хода
+    this.score += stats.points;
+    this.fx.text(`+${stats.points}`, stats.cx, stats.cy, { color: stats.mult > 1 ? '#ffcf4a' : '#ffffff', size: 22, rise: 70, life: 1 });
+    if (stats.mult > 1) { this.fx.text(`COMBO ×${stats.mult}`, stats.cx, stats.cy + 26, { color: '#ff9a2e', size: 18, rise: 60, life: 1 }); sfx.combo(this.streak); }
+    this.streak = stats.destroyed >= BIG_MOVE ? this.streak + 1 : 0;
     this.emitHud();
-    if (!left) { this.win(); return; }
+    if (!left) { this.finalBlow(mx, my); return; }
     if (!anyMove(this.board, this.charges, this.used)) {
       this.over = true;
       const noCharges = this.used.every(Boolean);
@@ -349,15 +422,32 @@ export class Game {
     if (this.def.intro === 'tutorial') this.showHint(this.hintMove(), true);
   }
 
+  // Последний блок: замедление, конфетти, затем победа.
+  finalBlow(mx, my) {
+    this.over = true;
+    this.slowT = 0.7;
+    this.fx.confetti(mx, my, 70);
+    this.fx.flash(0, 0, this.W, this.H, 'rgba(255,255,255,0.35)', 0.25);
+    this.punch = 1;
+    this.after(0.35, () => this.win());
+  }
+
   win() {
     this.over = true;
     const used = this.usedCount, par = this.def.par;
     const stars = used <= par ? 3 : used <= par + 1 ? 2 : 1;
     const mx = this.bx + this.board.w * this.cell / 2;
     const my = this.by + this.board.h * this.cell / 2;
-    this.fx.text('CLEAR!', mx, my - 10, { color: '#7dffb0', size: 44, life: 1.4 });
+    this.fx.text('CLEAR!', mx, my - 10, { color: '#7dffb0', size: 46, life: 1.4, tilt: -0.08 });
     sfx.win();
     haptic('heavy');
+    if (used <= par) { this.score += PTS_PERFECT; this.fx.text(`PERFECT +${PTS_PERFECT}`, mx, my + 34, { color: '#ffcf4a', size: 20, life: 1.4 }); }
+    if (this.blitz) {
+      // Blitz: без салюта и окна — сразу следующая фигура
+      this.emitHud();
+      this.after(0.55, () => this.ui.onBlitzClear());
+      return;
+    }
     // оставшиеся заряды — салютом
     const left = this.charges.map((_, k) => k).filter(k => !this.used[k]);
     left.forEach((k, i) => this.after(0.45 + i * 0.28, () => {
@@ -366,11 +456,13 @@ export class Game {
       this.spent[k] = true;
       this.fx.sparks(s.x, s.y, 36, col, 1.3);
       this.fx.ring(s.x, s.y, this.D * 0.9, 'rgba(255,255,255,', 0.45, 8);
-      this.fx.text('+BONUS', s.x, s.y - this.D * 0.6, { size: 18, color: '#ffe27a', life: 0.9 });
+      this.fx.text(`+${PTS_SPARE}`, s.x, s.y - this.D * 0.6, { size: 20, color: '#ffe27a', life: 0.9 });
+      this.score += PTS_SPARE;
+      this.emitHud();
       sfx.firework(i);
       haptic('medium');
     }));
-    this.after(0.9 + left.length * 0.28, () => this.ui.onWin({ stars, used, par, total: this.charges.length }));
+    this.after(0.9 + left.length * 0.28, () => this.ui.onWin({ stars, used, par, total: this.charges.length, score: this.score }));
   }
 
   // ---------- Подсказки ----------
@@ -425,7 +517,8 @@ export class Game {
   }
 
   needsFrame() {
-    return !!(this.drag || this.back || this.hint || this.landing || this.timers.length || this.fx.busy);
+    return !!(this.drag || this.back || this.hint || this.landing || this.timers.length || this.fx.busy ||
+      this.time - this.loadTime < 0.8 || this.punch > 0.01 || this.slowT > 0 || (this.blitz && this.blitz.running));
   }
 
   tick(now) {
@@ -448,6 +541,18 @@ export class Game {
   }
 
   update(dt) {
+    // Blitz: таймер идёт в реальном времени
+    if (this.blitz && this.blitz.running) {
+      const before = Math.ceil(this.blitz.time);
+      this.blitz.time -= dt;
+      if (this.blitz.time <= 5 && Math.ceil(this.blitz.time) !== before && this.blitz.time > 0) sfx.tick();
+      if (this.blitz.time <= 0) { this.blitz.time = 0; this.blitz.running = false; this.ui.onBlitzEnd(); }
+      this.ui.onBlitzTime(this.blitz.time);
+    }
+    this.punch *= Math.pow(0.02, dt);
+    // стоп-кадр и замедление финального взрыва
+    if (this.hitstop > 0) { this.hitstop -= dt; dt *= 0.08; }
+    else if (this.slowT > 0) { this.slowT -= dt; dt *= 0.35; }
     this.time += dt;
     if (this.timers.length) {
       const due = this.timers.filter(t => t.t <= this.time);
@@ -469,9 +574,12 @@ export class Game {
     ctx.globalAlpha = 1;
     ctx.clearRect(0, 0, this.cv.width, this.cv.height);
     if (!this.def) return;
-    const [sx, sy] = this.fx.shakeOffset();
-    ctx.setTransform(dpr, 0, 0, dpr, sx * dpr, sy * dpr);
+    let [sx, sy] = this.fx.shakeOffset();
     const bw = this.board.w * this.cell, bh = this.board.h * this.cell;
+    // толчок камеры: лёгкий зум к центру поля
+    const z = 1 + 0.035 * this.punch;
+    const zx = this.bx + bw / 2, zy = this.by + bh / 2;
+    ctx.setTransform(dpr * z, 0, 0, dpr * z, (sx + zx * (1 - z)) * dpr, (sy + zy * (1 - z)) * dpr);
     ctx.drawImage(this.boardCache, this.bx, this.by, bw, bh);
 
     if (this.drag && this.drag.target) this.drawPreview(this.drag.k, this.drag.target, this.drag.preview, 1);
@@ -480,6 +588,7 @@ export class Game {
 
     this.fx.drawBack(ctx);
     this.fx.drawFront(ctx, dpr, sx, sy);
+    ctx.setTransform(dpr, 0, 0, dpr, sx * dpr, sy * dpr);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     this.drawTray();
     if (this.back) this.drawBack();
@@ -527,7 +636,7 @@ export class Game {
       let n = 0;
       for (const e of preview.events) if (e.destroyed) n++;
       const tx = this.bx + (target.x + ch.w / 2) * c, ty = this.by + target.y * c - 14;
-      ctx.font = '900 18px system-ui, -apple-system, Roboto, sans-serif';
+      ctx.font = '700 19px Fredoka, system-ui, -apple-system, Roboto, sans-serif';
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(20,10,30,0.8)';
       ctx.strokeText(`💥${n}`, tx, ty);
@@ -550,21 +659,35 @@ export class Game {
   }
 
   drawTray() {
-    const ctx = this.ctx, D = this.D;
+    const ctx = this.ctx;
+    // панель лотка, уходит за нижний край экрана
+    rrectPath(ctx, 6, this.trayTop, this.W - 12, this.H - this.trayTop + 40, 26);
+    const g = ctx.createLinearGradient(0, this.trayTop, 0, this.H);
+    g.addColorStop(0, 'rgba(18,14,58,0.78)');
+    g.addColorStop(1, 'rgba(10,8,34,0.9)');
+    ctx.fillStyle = g;
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.09)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    const intro = this.time - this.loadTime;
     for (let k = 0; k < this.slots.length; k++) {
       const s = this.slots[k];
+      const img = this.trayPieces[k];
       if (this.spent[k] || (this.used[k] && !(this.landing && this.landing.k === k))) {
-        ctx.strokeStyle = 'rgba(255,255,255,0.08)';
-        ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.arc(s.x, s.y, D * 0.4, 0, Math.PI * 2); ctx.stroke();
+        ctx.globalAlpha = 0.1;
+        ctx.drawImage(img, s.x - s.w / 2, s.y - s.h / 2, s.w, s.h);
+        ctx.globalAlpha = 1;
         continue;
       }
       const dragging = (this.drag && this.drag.k === k) || (this.back && this.back.k === k) || (this.landing && this.landing.k === k);
-      let scale = 1;
-      if (this.hint && this.hint.k === k) scale = 1 + 0.06 * Math.sin(this.hint.t * 8);
-      ctx.globalAlpha = dragging ? 0.3 : 1;
-      const d = D * scale;
-      ctx.drawImage(this.bubbles[k], s.x - d / 2, s.y - d / 2, d, d);
+      // при старте уровня фигуры по очереди «впрыгивают»
+      const q = Math.max(0, Math.min(1, (intro - 0.05 - k * 0.05) / 0.35));
+      let scale = q < 1 ? backOut(q) : 1;
+      if (this.hint && this.hint.k === k) scale *= 1 + 0.07 * Math.sin(this.hint.t * 8);
+      ctx.globalAlpha = (dragging ? 0.25 : 1) * Math.min(1, q * 2);
+      const w = s.w * scale, h = s.h * scale;
+      ctx.drawImage(img, s.x - w / 2, s.y - h / 2, w, h);
       ctx.globalAlpha = 1;
     }
   }
@@ -573,7 +696,7 @@ export class Game {
     const d = this.drag, ch = this.charges[d.k];
     const p = this.piecePos(d);
     const k = EASE(Math.min(1, d.t / 0.1));
-    const small = Math.min(this.D * 0.56 / ch.w, this.D * 0.56 / ch.h, this.D * 0.19);
+    const small = this.trayCells[d.k];
     const size = small + (this.cell - small) * k;
     this.drawPiece(ch, p.x, p.y, size, d.target ? 0.95 : 0.8);
     // над фигурой, но не помещается — подкрасим красным
@@ -591,7 +714,7 @@ export class Game {
   drawBack() {
     const b = this.back, ch = this.charges[b.k], s = this.slots[b.k];
     const k = EASE(Math.min(1, b.t / 0.16));
-    const small = Math.min(this.D * 0.56 / ch.w, this.D * 0.56 / ch.h, this.D * 0.19);
+    const small = this.trayCells[b.k];
     const size = this.cell + (small - this.cell) * k;
     this.drawPiece(ch, b.x + (s.x - b.x) * k, b.y + (s.y - b.y) * k, size, 0.9);
   }
@@ -606,7 +729,7 @@ export class Game {
     else if (ph < 0.6) { m = EASE((ph - 0.15) / 0.45); alpha = 1; }
     else if (ph < 0.88) { m = 1; alpha = 1; }
     else { m = 1; alpha = 1 - (ph - 0.88) / 0.12; }
-    const small = Math.min(this.D * 0.56 / ch.w, this.D * 0.56 / ch.h, this.D * 0.19);
+    const small = this.trayCells[h.k];
     const size = small + (c - small) * m;
     const px = s.x + (ex - s.x) * m, py = s.y + (ey - s.y) * m;
     this.drawPiece(ch, px, py, size, 0.65 * alpha);

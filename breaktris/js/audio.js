@@ -85,6 +85,21 @@ export const sfx = {
   },
   fail() { if (!ok()) return; [392, 330, 262].forEach((f, i) => tone('triangle', f, f * 0.98, 0.25, 0.18, i * 0.13)); },
   click() { if (!ok()) return; tone('sine', 900, 700, 0.04, 0.12); },
+  // обвал: низкий гул и осыпающаяся крошка
+  collapse(n = 4) {
+    if (!ok()) return;
+    tone('sine', 90, 40, 0.5, 0.5);
+    burst('lowpass', 900, 120, 0.6, 0.45);
+    for (let i = 0; i < Math.min(5, 1 + (n >> 2)); i++) burst('bandpass', 1800 - i * 200, 600, 0.12, 0.18, 0.08 + i * 0.07);
+  },
+  // комбо: звонкий аккорд, с каждым шагом выше
+  combo(step = 1) {
+    if (!ok()) return;
+    const base = 520 * Math.pow(1.12, Math.min(step, 8));
+    [1, 1.25, 1.5].forEach((m, i) => tone('triangle', base * m, base * m, 0.18, 0.12, i * 0.04));
+  },
+  tick() { if (!ok()) return; tone('square', 1800, 1800, 0.02, 0.05); },
+  timeUp() { if (!ok()) return; [660, 520, 390].forEach((f, i) => tone('sawtooth', f, f * 0.97, 0.22, 0.1, i * 0.14)); },
 };
 
 export function haptic(kind = 'light') {

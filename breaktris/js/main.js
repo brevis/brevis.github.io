@@ -4,6 +4,7 @@ import { Game } from './game.js';
 import { parseCharge, NORMAL, TNT, STEEL, ICE } from './logic.js';
 import { buildBlockSprites, buildBubble } from './sprites.js';
 import { TitleBg } from './title-bg.js';
+import { makeBlitzFigure } from './blitz.js';
 import { sfx, unlockAudio, setSound, soundOn } from './audio.js';
 
 const $ = id => document.getElementById(id);
@@ -99,6 +100,9 @@ const ui = {
   onHud: onHud,
   onWin: onWin,
   onStuck: onStuck,
+  onBlitzClear: () => blitzClear(),
+  onBlitzEnd: () => blitzEnd(),
+  onBlitzTime: t => blitzTime(t),
 };
 
 function fitCanvas() {
@@ -127,7 +131,7 @@ function buildStars() {
 }
 buildStars();
 const game = new Game(cv, ui);
-window.__kb = { game, save, startLevel: i => startLevel(i) }; // для отладки из консоли
+window.__kb = { game, save, startLevel: i => startLevel(i), startBlitz: () => startBlitz() }; // для отладки из консоли
 
 let resizeRaf = 0;
 window.addEventListener('resize', () => {
@@ -142,15 +146,18 @@ function startLevel(i) {
   current = i;
   const def = LEVELS[i];
   closeModalSilently();
+  leaveBlitz();
   showScreen(null);
   $('hud-title').textContent = `${i + 1}. ${def.name}`;
   $('hud-sub').textContent = `★★★ — ${def.par} ${def.par === 1 ? 'charge' : 'charges'}`;
   hudStars = 3;
   updateHintBadge();
   game.load(i, def);
-  if (def.intro && !save.seen[def.intro]) {
-    save.seen[def.intro] = 1; persist();
-    showIntro(def.intro, () => afterIntro(def));
+  // карточка механики уровня; обвал объясняем со второго уровня (и тем, кто уже играл)
+  const intro = def.intro && !save.seen[def.intro] ? def.intro : (!save.seen.collapse && i >= 1 ? 'collapse' : null);
+  if (intro) {
+    save.seen[intro] = 1; persist();
+    showIntro(intro, () => afterIntro(def));
   } else afterIntro(def);
 }
 
@@ -164,11 +171,30 @@ function onHud(s) {
   const potential = s.used <= s.par ? 3 : s.used <= s.par + 1 ? 2 : 1;
   const stars = $('hud-stars').children;
   for (let i = 0; i < 3; i++) stars[i].classList.toggle('off', i >= potential);
-  if (potential < hudStars) toast(potential === 2 ? 'No more ★★★ — you can undo' : 'Only one star left');
+  if (potential < hudStars && !game.blitz) toast(potential === 2 ? 'No more ★★★ — you can undo' : 'Only one star left');
   hudStars = potential;
-  $('progress-fill').style.transform = `scaleX(${s.progress})`;
+  if (!game.blitz) $('progress-fill').style.transform = `scaleX(${s.progress})`;
   $('btn-undo').disabled = !s.canUndo;
+  animateScore(s.score);
 }
+
+// Счёт в HUD плавно докручивается до нового значения.
+let shownScore = 0, scoreRaf = 0;
+function animateScore(target) {
+  cancelAnimationFrame(scoreRaf);
+  const el = $('hud-score');
+  if (target < shownScore) { shownScore = target; el.textContent = fmt(target); return; }
+  const from = shownScore, t0 = performance.now();
+  const step = now => {
+    const k = Math.min(1, (now - t0) / 450);
+    shownScore = Math.round(from + (target - from) * (1 - (1 - k) * (1 - k)));
+    el.textContent = fmt(shownScore);
+    if (k < 1) scoreRaf = requestAnimationFrame(step);
+  };
+  scoreRaf = requestAnimationFrame(step);
+  if (target > from) { el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); }
+}
+const fmt = n => n.toLocaleString('en-US').replace(/,/g, '\u2009');
 
 function updateHintBadge() { $('hint-count').textContent = save.hints; }
 
@@ -177,6 +203,10 @@ function onWin(res) {
   let bonus = '';
   if (res.stars === 3 && prev < 3) { save.hints++; bonus = '+1 hint for ★★★'; }
   save.best[LEVELS[current].name] = Math.max(prev, res.stars);
+  save.scores = save.scores || {};
+  const prevScore = save.scores[LEVELS[current].name] || 0;
+  const newBest = res.score > prevScore;
+  if (newBest) save.scores[LEVELS[current].name] = res.score;
   persist();
   updateHintBadge();
   const last = current >= LEVELS.length - 1;
@@ -186,6 +216,7 @@ function onWin(res) {
     <div class="kicker">Level ${current + 1}</div>
     <h3>${last ? 'All blasted!' : 'Blasted!'}</h3>
     <div class="big-stars">${starsHtml(res.stars)}</div>
+    <div class="score-line"><b>${fmt(res.score)}</b><span>${newBest ? (prevScore ? 'New best!' : 'points') : `best ${fmt(prevScore)}`}</span></div>
     ${bonus ? `<div class="note">${bonus}</div>` : ''}
     ${hint}
     ${last ? '<p>That was the last level of the prototype.</p>' : ''}
@@ -205,6 +236,7 @@ function onWin(res) {
 }
 
 function onStuck(reason) {
+  if (game.blitz) { blitzStuck(); return; }
   openModal(`
     <h3>Dead end!</h3>
     <p>${reason}. Undo a move and try another way.</p>
@@ -225,6 +257,8 @@ const INTRO = {
   fire: { kicker: 'New charge', title: 'Napalm', text: 'Blasts its shape and sets every neighboring block on fire. It still has to sit fully on blocks.', icon: 'f:#' },
   steel: { kicker: 'New block', title: 'Steel', text: 'Takes two hits: the first blast only cracks it. Cover it twice or finish it off with a blast next to it.', icon: 'steel' },
   laser: { kicker: 'New charge', title: 'Laser', text: 'Burns through every row it touches, edge to edge.', icon: 'l:#' },
+  collapse: { kicker: 'New trick', title: 'Collapse', text: 'Cut a piece off the shape and it crumbles on its own. Find the weak spots — one smart blast can drop half the shape!', icon: 'collapse' },
+  blitz: { kicker: 'Blitz', title: '60 seconds', text: 'Blast as many shapes as you can before time runs out. Every clear adds +3 s, getting stuck costs 5 s. Big blasts and combos score more!', icon: 'blitz' },
   ice: { kicker: 'New block', title: 'Ice', text: "Charges slide right off ice — you can't place one on it. Melt it with napalm, burn through it with a laser, or blow it up with TNT.", icon: 'ice' },
 };
 
@@ -250,6 +284,15 @@ function drawIcon(canvas, icon, size) {
   const ctx = canvas.getContext('2d');
   const spr = buildBlockSprites(Math.round(size * 0.6 * dpr));
   const s = canvas.width;
+  if (icon === 'collapse' || icon === 'blitz') {
+    // три блока держатся, четвёртый отвалился и падает
+    const b = s * 0.26;
+    const img = icon === 'blitz' ? spr.charge.basic : spr[NORMAL];
+    [[0.12, 0.2], [0.38, 0.2], [0.38, 0.46]].forEach(([x, y]) => ctx.drawImage(img, s * x, s * y, b, b));
+    ctx.save(); ctx.translate(s * 0.76, s * 0.7); ctx.rotate(0.5); ctx.globalAlpha = 0.85;
+    ctx.drawImage(img, -b / 2, -b / 2, b, b); ctx.restore();
+    return;
+  }
   if (icon === 'tnt' || icon === 'steel' || icon === 'ice') {
     const img = spr[icon === 'tnt' ? TNT : icon === 'ice' ? ICE : STEEL];
     ctx.drawImage(img, s * 0.2, s * 0.2, s * 0.6, s * 0.6);
@@ -307,9 +350,10 @@ $('btn-sound').onclick = () => {
   unlockAudio(); sfx.click();
 };
 renderSoundBtn();
-$('btn-menu').onclick = () => { sfx.click(); openLevels(); };
+$('btn-menu').onclick = () => { sfx.click(); if (game.blitz) { leaveBlitz(); showScreen('screen-title'); } else openLevels(); };
+$('btn-blitz').onclick = () => { unlockAudio(); sfx.click(); startBlitz(); };
 $('btn-undo').onclick = () => { if (game.undo()) sfx.click(); };
-$('btn-restart').onclick = () => { sfx.click(); hudStars = 3; game.restart(); };
+$('btn-restart').onclick = () => { sfx.click(); hudStars = 3; if (game.blitz) startBlitz(); else game.restart(); };
 $('btn-hint').onclick = () => {
   unlockAudio();
   if (game.busy || game.over) return;
@@ -393,3 +437,81 @@ document.addEventListener('visibilitychange', () => {
 window.addEventListener('resize', () => titleBg.resize());
 showScreen('screen-title');
 checkDailyBonus();
+if (location.hash === '#blitz') startBlitz();
+
+// ---------- Режим Blitz ----------
+const BLITZ_TIME = 60, BLITZ_CLEAR_BONUS = 3, BLITZ_STUCK_PENALTY = 5;
+
+function startBlitz() {
+  closeModalSilently();
+  showScreen(null);
+  $('hud').classList.add('blitz');
+  game.blitz = { time: BLITZ_TIME, total: 0, cleared: 0, running: false };
+  nextBlitzFigure();
+  const go = () => { game.blitz.running = true; game.requestFrame(); };
+  if (!save.seen.blitz) { save.seen.blitz = 1; persist(); showIntro('blitz', go); } else go();
+}
+
+function nextBlitzFigure() {
+  const b = game.blitz;
+  const def = makeBlitzFigure(b.cleared);
+  $('hud-title').textContent = `Blitz · shape ${b.cleared + 1}`;
+  $('hud-sub').textContent = `best ${fmt(save.blitzBest || 0)}`;
+  game.load(-1, def);
+  blitzTime(b.time);
+}
+
+function blitzClear() {
+  const b = game.blitz;
+  if (!b || !b.running) return;
+  b.total += game.score;
+  b.cleared++;
+  b.time += BLITZ_CLEAR_BONUS;
+  toast(`+${BLITZ_CLEAR_BONUS}s`, 800);
+  nextBlitzFigure();
+}
+
+function blitzStuck() {
+  const b = game.blitz;
+  b.time = Math.max(0, b.time - BLITZ_STUCK_PENALTY);
+  toast(`Stuck! −${BLITZ_STUCK_PENALTY}s`, 900);
+  sfx.fail();
+  b.total += game.score;
+  setTimeout(() => { if (game.blitz && game.blitz.running) nextBlitzFigure(); }, 450);
+}
+
+function blitzTime(t) {
+  $('progress-fill').style.transform = `scaleX(${Math.min(1, t / BLITZ_TIME)})`;
+  $('hud').classList.toggle('hurry', t <= 10);
+}
+
+function blitzEnd() {
+  const b = game.blitz;
+  if (!b) return;
+  game.over = true;
+  const total = b.total + game.score;
+  const prev = save.blitzBest || 0;
+  if (total > prev) save.blitzBest = total;
+  persist();
+  sfx.timeUp();
+  setTimeout(() => {
+    openModal(`
+      <div class="kicker">Blitz</div>
+      <h3>Time's up!</h3>
+      <div class="score-line big"><b>${fmt(total)}</b><span>${total > prev ? (prev ? 'New best!' : 'points') : `best ${fmt(prev)}`}</span></div>
+      <p>Shapes blasted: ${b.cleared}</p>
+      <div class="btns">
+        <button class="btn big" data-a="again">Play again</button>
+        <button class="btn secondary" data-a="menu">Menu</button>
+      </div>`, card => {
+      card.querySelector('[data-a=again]').onclick = () => { sfx.click(); startBlitz(); };
+      card.querySelector('[data-a=menu]').onclick = () => { sfx.click(); closeModalSilently(); leaveBlitz(); showScreen('screen-title'); };
+    });
+  }, 500);
+}
+
+function leaveBlitz() {
+  if (!game.blitz) return;
+  game.blitz = null;
+  $('hud').classList.remove('blitz', 'hurry');
+}

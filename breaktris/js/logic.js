@@ -3,6 +3,7 @@
 
 // ICE — лёд: заряд на него поставить нельзя, он тает только от волны (напалм, лазер, динамит).
 export const EMPTY = 0, NORMAL = 1, TNT = 2, STEEL = 3, ICE = 4;
+export const COLLAPSE = true; // отрезанные куски фигуры падают (см. collapse)
 
 export const KIND_INFO = {
   basic: { name: 'Charge', desc: 'Blasts exactly its own shape.' },
@@ -115,6 +116,7 @@ export function resolve(b, ch, ox, oy) {
   }
 
   const events = [];
+  let lastT = 0;
   for (let t = 0; t < buckets.length; t++) {
     const list = buckets[t];
     if (!list) continue;
@@ -123,6 +125,7 @@ export function resolve(b, ch, ox, oy) {
       hp[i]--;
       const destroyed = hp[i] === 0;
       events.push({ i, t, destroyed, type: type[i] });
+      lastT = t;
       if (destroyed && type[i] === TNT) {
         const x = i % w, y = (i / w) | 0;
         for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
@@ -133,7 +136,58 @@ export function resolve(b, ch, ox, oy) {
       }
     }
   }
+  // Обвал: если ход разрезал кусок фигуры на части, остаётся самая большая часть,
+  // остальные падают и рассыпаются (отдельной волной, с пометкой fell).
+  const fallen = collapse(b.hp, hp, w, h);
+  if (fallen.length) {
+    const t = lastT + 1;
+    for (const i of fallen) { events.push({ i, t, destroyed: true, type: type[i], fell: true }); hp[i] = 0; }
+    return { hp, events, waves: t + 1 };
+  }
   return { hp, events, waves: buckets.length };
+}
+
+// Разметка связных кусков (4-соседство). Возвращает метки и размеры.
+function components(hp, w, h) {
+  const label = new Int32Array(hp.length).fill(-1);
+  const sizes = [], lowest = [];
+  const stack = [];
+  for (let s = 0; s < hp.length; s++) {
+    if (!hp[s] || label[s] >= 0) continue;
+    const id = sizes.length;
+    let size = 0, low = s;
+    label[s] = id; stack.push(s);
+    while (stack.length) {
+      const i = stack.pop();
+      size++;
+      if (i > low) low = i;
+      const x = i % w, y = (i / w) | 0;
+      if (x > 0 && hp[i - 1] && label[i - 1] < 0) { label[i - 1] = id; stack.push(i - 1); }
+      if (x < w - 1 && hp[i + 1] && label[i + 1] < 0) { label[i + 1] = id; stack.push(i + 1); }
+      if (y > 0 && hp[i - w] && label[i - w] < 0) { label[i - w] = id; stack.push(i - w); }
+      if (y < h - 1 && hp[i + w] && label[i + w] < 0) { label[i + w] = id; stack.push(i + w); }
+    }
+    sizes.push(size); lowest.push(low);
+  }
+  return { label, sizes, lowest };
+}
+
+// Какие клетки отваливаются после хода: внутри каждого куска «до» оставляем
+// самую большую часть «после» (при равенстве — ту, что ниже), остальные падают.
+export function collapse(before, after, w, h) {
+  const A = components(after, w, h);
+  if (A.sizes.length < 2) return [];
+  const B = components(before, w, h);
+  const keep = new Map(); // метка «до» → метка «после», которая остаётся
+  for (let i = 0; i < after.length; i++) {
+    if (!after[i]) continue;
+    const pb = B.label[i], pa = A.label[i];
+    const cur = keep.get(pb);
+    if (cur === undefined || A.sizes[pa] > A.sizes[cur] || (A.sizes[pa] === A.sizes[cur] && A.lowest[pa] > A.lowest[cur])) keep.set(pb, pa);
+  }
+  const out = [];
+  for (let i = 0; i < after.length; i++) if (after[i] && keep.get(B.label[i]) !== A.label[i]) out.push(i);
+  return out;
 }
 
 // ---------- Солвер ----------
@@ -183,7 +237,14 @@ function coverable(b, groups, allPs) {
       }
     }
   }
-  for (let i = 0; i < hp.length; i++) if (hp[i] && !hit[i]) return false;
+  let comps = null;
+  for (let i = 0; i < hp.length; i++) {
+    if (!hp[i] || hit[i]) continue;
+    // с обвалом клетка вне самого большого куска может отвалиться сама
+    comps = comps || components(hp, w, h);
+    const big = comps.sizes.indexOf(Math.max(...comps.sizes));
+    if (comps.label[i] === big) return false;
+  }
   return true;
 }
 
@@ -203,6 +264,8 @@ function hpKey(hp) {
 }
 
 export function isOrderFree(board, charges) {
+  // с обвалом порядок ходов важен всегда: отвалится то, что отрезано к моменту хода
+  if (COLLAPSE) return false;
   if (charges.some(c => c.kind !== 'basic')) return false;
   for (let i = 0; i < board.type.length; i++) if (board.hp[i] && board.type[i] === TNT) return false;
   return true;
@@ -244,10 +307,12 @@ function makeSearcher(board, groups, maxNodes) {
     const f = fail.get(key);
     if (f !== undefined && f >= budget) return false;
     if (++st.nodes > maxNodes) { st.aborted = true; return false; }
-    if (!bound(hp, counts, budget)) { fail.set(key, budget); return false; }
+    if (!COLLAPSE && !bound(hp, counts, budget)) { fail.set(key, budget); return false; }
     const b = { w, h, type, hp };
     const allPs = groups.map((g, gi) => counts[gi] ? placements(b, g.ch) : []);
-    if (!coverable(b, groups, allPs)) { fail.set(key, 1e9); return false; }
+    if (allPs.every(p => !p.length)) { fail.set(key, 1e9); return false; }
+    // без обвала каждую клетку нужно чем-то достать; с обвалом это не обязательно
+    if (!COLLAPSE && !coverable(b, groups, allPs)) { fail.set(key, 1e9); return false; }
 
     let first = -1;
     if (orderFree) for (let i = 0; i < hp.length; i++) if (hp[i]) { first = i; break; }

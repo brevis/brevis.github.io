@@ -1,5 +1,11 @@
 /* Лёгкий UI: без backdrop-filter и тяжёлых теней — бережём слабые телефоны.
    Анимации только transform/opacity. */
+@font-face {
+  font-family: "Fredoka";
+  font-weight: 400 700;
+  font-display: swap;
+  src: url("../fonts/fredoka-latin.woff2") format("woff2");
+}
 :root {
   --sat: env(safe-area-inset-top, 0px);
   --sab: env(safe-area-inset-bottom, 0px);
@@ -9,7 +15,7 @@
   --blue: #9fb4e6;
   --text: #fff;
   --muted: #b8b3e6;
-  --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font: "Fredoka", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
 * { box-sizing: border-box; }
@@ -96,7 +102,18 @@ button {
   font-size: 12px; font-weight: 800; line-height: 19px;
 }
 
-#progress { height: 6px; margin: 8px 6px 0; border-radius: 3px; background: rgba(0,0,0,.25); overflow: hidden; }
+/* строка прогресса: полоска + счёт справа */
+.progress-row { display: flex; align-items: center; gap: 10px; margin: 8px 6px 0; }
+#progress { flex: 1; height: 6px; border-radius: 3px; background: rgba(0,0,0,.25); overflow: hidden; }
+#hud-score { min-width: 64px; text-align: right; font-weight: 700; font-size: 18px; color: var(--gold); text-shadow: 0 2px 0 rgba(110, 50, 0, .6); font-variant-numeric: tabular-nums; }
+#hud-score.bump { animation: score-bump .3s cubic-bezier(.2, 1.8, .5, 1); }
+@keyframes score-bump { 40% { transform: scale(1.25); } }
+/* Blitz: звёзды, отмена и подсказки не нужны, полоска — таймер */
+#hud.blitz #hud-stars, #hud.blitz #btn-undo, #hud.blitz #btn-hint { display: none; }
+#hud.blitz #progress { height: 10px; border-radius: 5px; }
+#hud.blitz #progress-fill { transition: none; background: linear-gradient(90deg, #45e6ff, #7dffb0); }
+#hud.hurry #progress-fill { background: linear-gradient(90deg, #ff3b3b, #ff8a2a); animation: hurry .5s ease-in-out infinite alternate; }
+@keyframes hurry { to { opacity: .55; } }
 #progress-fill { height: 100%; width: 100%; transform-origin: left; transform: scaleX(0); background: linear-gradient(90deg, #ff9d3c, #ffd34a); transition: transform .35s ease-out; }
 
 /* ---------- Экраны ---------- */
@@ -162,6 +179,8 @@ button {
 .btn.big { font-size: 24px; padding: 18px 32px; }
 .btn.secondary { background: linear-gradient(#b1c4f2, #859edc); box-shadow: 0 5px 0 #34479a; text-shadow: 0 2px 0 rgba(30, 40, 110, .45); }
 .btn.secondary:active { box-shadow: 0 1px 0 #34479a; }
+.btn.blitz { background: linear-gradient(#ff8be0, #e8309f); box-shadow: 0 5px 0 #7c1057; text-shadow: 0 2px 0 rgba(110, 10, 70, .5); }
+.btn.blitz:active { box-shadow: 0 1px 0 #7c1057; }
 .btn.ghost { background: transparent; box-shadow: none; text-shadow: none; color: var(--muted); font-size: 15px; padding: 8px; min-width: 0; }
 
 /* ---------- Выбор уровня ---------- */
@@ -239,6 +258,10 @@ button {
 }
 .daily-icon svg { width: 60px; height: 60px; fill: var(--gold); filter: drop-shadow(0 3px 0 #b07c10); }
 @keyframes daily-pop { from { transform: scale(0) rotate(-30deg); } }
+.score-line { display: flex; align-items: baseline; justify-content: center; gap: 8px; margin: 2px 0 0; }
+.score-line b { font-size: 30px; color: var(--gold); text-shadow: 0 3px 0 rgba(110, 50, 0, .6); font-variant-numeric: tabular-nums; }
+.score-line span { color: var(--muted); font-size: 14px; font-weight: 700; }
+.score-line.big b { font-size: 46px; }
 .card .note { color: var(--gold); font-weight: 700; font-size: 14px; margin: 6px 0 0; }
 
 /* ---------- Тост ---------- */
