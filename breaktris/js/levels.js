@@ -12,6 +12,12 @@ export const LEVELS = [
     par: 2, sol: '0,1,0;1,0,2', intro: 'tutorial', chapter: 'Basics',
   },
   {
+    name: 'Cut Loose',
+    grid: ['###...', '###.##', '######', '....##'],
+    charges: ['##/##', '#', '###/###/###', '##'],
+    par: 2, sol: '1,3,2;2,0,0', intro: 'collapse',
+  },
+  {
     name: 'Kitty',
     grid: ['#..#', '####', '####', '.##.'],
     charges: ['#./##/#.', '.#/##/.#', '##/##'],

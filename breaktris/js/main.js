@@ -2,7 +2,7 @@
 import { LEVELS } from './levels.js';
 import { Game } from './game.js';
 import { parseCharge, NORMAL, TNT, STEEL, ICE } from './logic.js';
-import { buildBlockSprites, buildBubble } from './sprites.js';
+import { buildBlockSprites, buildTrayPiece } from './sprites.js';
 import { TitleBg } from './title-bg.js';
 import { makeBlitzFigure } from './blitz.js';
 import { sfx, unlockAudio, setSound, soundOn } from './audio.js';
@@ -153,8 +153,7 @@ function startLevel(i) {
   hudStars = 3;
   updateHintBadge();
   game.load(i, def);
-  // карточка механики уровня; обвал объясняем со второго уровня (и тем, кто уже играл)
-  const intro = def.intro && !save.seen[def.intro] ? def.intro : (!save.seen.collapse && i >= 1 ? 'collapse' : null);
+  const intro = def.intro && !save.seen[def.intro] ? def.intro : null;
   if (intro) {
     save.seen[intro] = 1; persist();
     showIntro(intro, () => afterIntro(def));
@@ -163,6 +162,11 @@ function startLevel(i) {
 
 function afterIntro(def) {
   if (def.intro === 'tutorial') game.showHint(game.hintMove(), true);
+  // обучение обвалу: сами показываем удар по «шейке»
+  if (def.intro === 'collapse' && !game.moves.length) {
+    game.showHint(game.hintMove(), true);
+    toast('Hit the thin neck — the loose piece will crumble!', 3200);
+  }
 }
 
 function closeModalSilently() { modalOnClose = null; $('modal').classList.add('hidden'); }
@@ -251,7 +255,7 @@ function onStuck(reason) {
 
 // ---------- Карточки новых механик ----------
 const INTRO = {
-  tutorial: { kicker: 'How to play', title: 'Blast the shape', text: 'Drag a charge from its bubble onto the shape. It has to sit fully on blocks — then it blows them up. Destroy every last block!', icon: '##/##' },
+  tutorial: { kicker: 'How to play', title: 'Blast the shape', text: 'Drag a charge from the tray onto the shape. It has to sit fully on blocks — then it blows them up. Destroy every last block!', icon: '##/##' },
   stars: { kicker: 'Stars', title: 'Save your charges', text: "You don't have to use every charge. Clear the shape with fewer to earn ★★★ — leftovers go off as fireworks.", icon: 'stars' },
   tnt: { kicker: 'New block', title: 'TNT', text: 'Goes off from any hit and wipes out everything around it (3×3). TNT next to TNT sets off a chain reaction!', icon: 'tnt' },
   fire: { kicker: 'New charge', title: 'Napalm', text: 'Blasts its shape and sets every neighboring block on fire. It still has to sit fully on blocks.', icon: 'f:#' },
@@ -297,7 +301,9 @@ function drawIcon(canvas, icon, size) {
     const img = spr[icon === 'tnt' ? TNT : icon === 'ice' ? ICE : STEEL];
     ctx.drawImage(img, s * 0.2, s * 0.2, s * 0.6, s * 0.6);
   } else {
-    ctx.drawImage(buildBubble(s, parseCharge(icon), spr), 0, 0);
+    const ch = parseCharge(icon);
+    const m = Math.min(s * 0.8 / ch.w, s * 0.8 / ch.h, s * 0.3);
+    ctx.drawImage(buildTrayPiece(s, s, ch, spr, m), 0, 0);
   }
 }
 

@@ -15,8 +15,6 @@ export function makeCanvas(w, h) {
   return c;
 }
 
-// Детерминированный rng: пузырьки в шарах одинаковые при каждой отрисовке.
-function rng(seed) { return () => ((seed = (seed * 16807) % 2147483647) / 2147483647); }
 
 const ENERGY = {
   basic: { edge: '#6e0b4e', top: '#ffa6e6', bot: '#e8309f', core: '#fff3fb' },
@@ -236,71 +234,6 @@ export function buildPuff(px, rgb) {
   g.addColorStop(1, `rgba(${rgb},0)`);
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, px, px);
-  return c;
-}
-
-// Пузырь-заряд с фигуркой внутри (как на эскизе).
-export function buildBubble(px, charge, blockSprites) {
-  const c = makeCanvas(px, px);
-  const ctx = c.getContext('2d');
-  const r = px / 2;
-  const col = KIND_COLOR[charge.kind];
-  // внешнее свечение
-  const glow = ctx.createRadialGradient(r, r, r * 0.8, r, r, r);
-  glow.addColorStop(0, col.glow + '0.0)');
-  glow.addColorStop(0.7, col.glow + '0.35)');
-  glow.addColorStop(1, col.glow + '0)');
-  ctx.fillStyle = glow;
-  ctx.fillRect(0, 0, px, px);
-  // стеклянный шар
-  const body = ctx.createRadialGradient(r * 0.75, r * 0.65, r * 0.1, r, r, r * 0.92);
-  body.addColorStop(0, '#7b76b0');
-  body.addColorStop(0.7, '#3b3578');
-  body.addColorStop(1, '#1d1946');
-  ctx.fillStyle = body;
-  ctx.beginPath(); ctx.arc(r, r, r * 0.9, 0, Math.PI * 2); ctx.fill();
-  // пузырьки внутри
-  const rand = rng(charge.cells.length * 31 + charge.w * 7 + 3);
-  ctx.strokeStyle = col.glow + '0.55)';
-  ctx.lineWidth = Math.max(1, px * 0.012);
-  for (let i = 0; i < 9; i++) {
-    const a = rand() * Math.PI * 2, d = r * (0.35 + rand() * 0.45);
-    ctx.beginPath();
-    ctx.arc(r + Math.cos(a) * d, r + Math.sin(a) * d, px * (0.02 + rand() * 0.04), 0, Math.PI * 2);
-    ctx.stroke();
-  }
-  // обод
-  ctx.lineWidth = Math.max(2, px * 0.045);
-  ctx.strokeStyle = col.rim;
-  ctx.beginPath(); ctx.arc(r, r, r * 0.88, 0, Math.PI * 2); ctx.stroke();
-  ctx.lineWidth = Math.max(1, px * 0.015);
-  ctx.strokeStyle = 'rgba(255,255,255,0.35)';
-  ctx.beginPath(); ctx.arc(r, r, r * 0.82, 0, Math.PI * 2); ctx.stroke();
-
-  // фигурка
-  const m = Math.min(px * 0.56 / charge.w, px * 0.56 / charge.h, px * 0.19);
-  const ox = r - charge.w * m / 2, oy = r - charge.h * m / 2;
-  if (charge.kind === 'laser') {
-    ctx.fillStyle = 'rgba(63,214,255,0.55)';
-    const rows = new Set(charge.cells.map(c => c[1]));
-    for (const y of rows) ctx.fillRect(r - r * 0.78, oy + y * m + m * 0.38, r * 1.56, m * 0.24);
-  }
-  if (charge.kind === 'fire') {
-    ctx.fillStyle = 'rgba(255,138,42,0.35)';
-    for (const [x, y] of charge.cells) {
-      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-        if (charge.cells.some(([a, b]) => a === x + dx && b === y + dy)) continue;
-        ctx.fillRect(ox + (x + dx) * m + m * 0.15, oy + (y + dy) * m + m * 0.15, m * 0.7, m * 0.7);
-      }
-    }
-  }
-  const spr = blockSprites.charge[charge.kind];
-  for (const [x, y] of charge.cells) ctx.drawImage(spr, ox + x * m, oy + y * m, m, m);
-  // блик
-  ctx.fillStyle = 'rgba(255,255,255,0.3)';
-  ctx.beginPath();
-  ctx.ellipse(r * 0.66, r * 0.42, r * 0.4, r * 0.17, -0.6, 0, Math.PI * 2);
-  ctx.fill();
   return c;
 }
 
