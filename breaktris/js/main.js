@@ -372,8 +372,19 @@ $('btn-hint').onclick = () => {
   game.showHint(m);
 };
 
-// Android «назад» в Capacitor
-document.addEventListener('backbutton', () => openLevels());
+// Android «назад» в Capacitor: окно → из уровня к списку (из Blitz — в меню) → из списка в меню →
+// с титульного экрана сворачиваем приложение, как делают обычные Android-приложения.
+document.addEventListener('backbutton', () => {
+  if (!$('modal').classList.contains('hidden')) {
+    const b = ['ok', 'levels', 'menu', 'undo'].map(a => $('modal-card').querySelector(`[data-a=${a}]`)).find(Boolean);
+    if (b) b.click(); else closeModal();
+    return;
+  }
+  if (!$('screen-levels').classList.contains('hidden')) { $('btn-levels-back').click(); return; }
+  if ($('screen-title').classList.contains('hidden')) { $('btn-menu').click(); return; }
+  const App = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App;
+  if (App && App.minimizeApp) App.minimizeApp(); else if (App) App.exitApp();
+});
 
 // Декор на титульном экране: фигура из эскиза.
 // Эмблема под логотипом: бомба из блоков игры — корпус из обычных блоков, TNT в центре,
