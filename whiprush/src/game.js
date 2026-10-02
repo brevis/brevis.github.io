@@ -1,14 +1,14 @@
 import * as THREE from 'three';
-import { SIDE_HOOK_X, LANE_W, HOOK_Y, HOOK_AHEAD, GAP_LEN, CHUNK_LEN, BASE_SPEED, MAX_SPEED, LEVEL_DIST, RUSH_COMBO, RUSH_TIME, IS_MOBILE, clamp, lerp, damp } from './config.js?v=muqzour7';
+import { SIDE_HOOK_X, LANE_W, HOOK_Y, HOOK_AHEAD, GAP_LEN, CHUNK_LEN, BASE_SPEED, MAX_SPEED, LEVEL_DIST, RUSH_COMBO, RUSH_TIME, IS_MOBILE, clamp, lerp, damp } from './config.js?v=mur08zc2';
 const CHARGE_TIME = 0.42;
-import { Player } from './player.js?v=muqzour7';
-import { Whip } from './whip.js?v=muqzour7';
-import { World } from './world.js?v=muqzour7';
-import { Particles, Debris, Shake, Floaters } from './fx.js?v=muqzour7';
-import { audio } from './audio.js?v=muqzour7';
-import { Missions } from './missions.js?v=muqzour7';
-import { Boulder } from './boulder.js?v=muqzour7';
-import { bendX, curveD, curveDD } from './bend.js?v=muqzour7';
+import { Player } from './player.js?v=mur08zc2';
+import { Whip } from './whip.js?v=mur08zc2';
+import { World } from './world.js?v=mur08zc2';
+import { Particles, Debris, Shake, Floaters } from './fx.js?v=mur08zc2';
+import { audio } from './audio.js?v=mur08zc2';
+import { Missions } from './missions.js?v=mur08zc2';
+import { Boulder } from './boulder.js?v=mur08zc2';
+import { bendX, curveD, curveDD } from './bend.js?v=mur08zc2';
 
 const GRAB_MIN = 1.5, GRAB_MAX = 15, WHIP_RANGE = 9.5;
 
@@ -30,7 +30,7 @@ export class Game {
   resetRun() {
     this.player.reset(); this.world.reset(); this.whip.release();
     this.distance = 0; this.bonus = 0; this.coins = 0; this.combo = 0; this.comboT = 0; this.level = 1; this.speed = 0; this.boost = 1; this.stumbleMult = 1;
-    this.magnetT = 0; this.deadT = 0; this.landedFlag = false; this.whipCD = 0; this.swingsThisRun = 0; this._releaseHintShown = false; this._justSwung = false; this.rushT = 0; this.rushes = 0; this._onLedge = false; this.slamCD = 0; this.buf = { jump: 0, whip: 0, whipDir: 'fwd' }; this.chain = 0; this.lastFwdT = -9; this.charging = false; this.chargeT = 0;
+    this.magnetT = 0; this.deadT = 0; this.landedFlag = false; this.whipCD = 0; this.swingsThisRun = 0; this._releaseHintShown = false; this._justSwung = false; this.rushT = 0; this.rushes = 0; this._onLedge = false; this.slamCD = 0; this.buf = { jump: 0, whip: 0, whipDir: 'fwd' }; this._banked = 0; this.invulnT = 0; this.continues = 0; this.chain = 0; this.lastFwdT = -9; this.charging = false; this.chargeT = 0;
     if (this.boulder) this.boulder.reset(); if (this.missions) this.missions.runStart(); this.hintShown = { whip: false, hook: false }; this.hookTarget = null;
     this.ui.setHUD({ score: 0, distance: 0, coins: 0, level: 1, combo: 0 }); this.ui.setPowerups([]);
   }
@@ -38,6 +38,30 @@ export class Game {
   start() {
     audio.init(); this.resetRun(); this.state = 'playing'; this.ui.showHUD(); audio.startMusic(); this.ui.hideHint();
     if (this.firstRun) this.ui.showHint('SWIPE ← → TO DODGE', 2.2);
+  }
+  // Respawn where the run ended: before the chasm for falls (hooks reset so the swing can be retried),
+  // a step back with nearby threats cleared for hits. Score, distance, level and coins carry on.
+  continueRun() {
+    if (this.state !== 'dead') return;
+    const p = this.player, w = this.world, E = w.ents; const deathZ = p.z;
+    let rz = deathZ + 3, guard = 0;
+    if (p.deathKind === 'fall' || w.groundY(0, rz) < -1e8) { let z = Math.max(deathZ, rz); while (w.groundY(0, z) < -1e8 && guard++ < 400) z += 0.5; rz = z + 7; }
+    guard = 0; while (w.groundY(0, rz) < -1e8 && guard++ < 100) rz += 1;
+    for (const e of [...E.active]) {
+      if (!e.alive) continue; const ahead = rz - e.z;
+      if (e.type === 'hook' && ahead > -6 && ahead < 140) { e.used = false; e.mesh.userData.halo.visible = false; }
+      if (['urchin', 'golem', 'crates', 'charger', 'swooper', 'totem', 'pillar', 'wave'].includes(e.type) && ahead > -3 && ahead < 16 && !(e.opts && e.opts.air)) E.release(e);
+    }
+    const gy = w.groundY(0, rz);
+    p.state = 'run'; p.stateT = 0; p.deathKind = null; p.swing = null; p.vy = 0; p.lane = 0; p.x = 0; p.z = rz; p.y = gy; p.slamming = false; p.doubleJumped = false; p.jumpedThisAir = false;
+    p.root.rotation.set(0, 0, 0); p.body.rotation.set(0, 0, 0); p.root.position.set(0, gy, rz); p.hurtT = 2.2; p.landT = 0;
+    if (p.skinned) { p.mixer.stopAllAction(); p.cur = null; p._play('run', 0); }
+    this.distance = Math.max(0, this.distance - Math.max(0, rz - deathZ));
+    this.state = 'playing'; this.invulnT = 2.2; this.speed = BASE_SPEED * 0.55; this.boost = 1; this.stumbleMult = 1; this.rushT = 0; this.combo = 0; this.comboT = 0;
+    this.slowmo = 0; this.hitstop = 0; this.charging = false; this.buf.jump = 0; this.buf.whip = 0; this.continues++;
+    this.whip.release(); this.boulder.reset(); this.hookTarget = null;
+    this._camPos.set(0, gy + 3.3, rz + 5.7); this._camBase = gy; this._camBack = 5.7;
+    this.ui.showHUD(); this.ui.showBanner('CONTINUE!'); audio.startMusic(); audio.power();
   }
   toMenu() { this.state = 'menu'; this.resetRun(); this.ui.showMenu(this.best); this.ui.renderMissions(this.missions.list(), this.missions.mult, this.bank); audio.stopMusic(); }
 
@@ -206,7 +230,7 @@ export class Game {
         e.r += 10 * dt; if (e.r > 18) { E.release(e); continue; }
         if (Math.random() < dt * 40) { const a = Math.atan2(p.x - e.x, p.z - e.z) + (Math.random() - 0.5) * 0.9; this.particles.burst(this._v.set(e.x + Math.sin(a) * e.r, e.y + 0.2, e.z + Math.cos(a) * e.r), 2, { color: 0xffc27a, color2: 0xd8c9a8, speed: 1.5, up: 2.5, size: 0.8, life: 0.4, grav: -3 }); }
         const dist = Math.hypot(p.x - e.x, p.z - e.z); const side = Math.sign(dist - e.r); const crossed = e.prevSide !== undefined && side !== e.prevSide; e.prevSide = side;
-        if (!e.hit && this.rushT <= 0) { const ry = p.y - this.world.heightAt(p.z); if ((crossed || Math.abs(dist - e.r) < 0.4) && ry < 0.45 && p.state !== 'swing') { e.hit = true; if (p.shield) { p.setShield(false); audio.smash(); this.ui.flash(0.35, '#9fd8ff'); p.hurtT = 0.8; } else { this._die('hit'); return; } } else if (dist < e.r - 0.6 && !e.passedP) { e.passedP = true; this.bonus += 40; this.floaters.spawn(this._v.set(p.x, p.y + 2.3, p.z), 'HOP! +40', 'purple'); this.missions.add('hops'); } }
+        if (!e.hit && this.rushT <= 0 && !(this.invulnT > 0)) { const ry = p.y - this.world.heightAt(p.z); if ((crossed || Math.abs(dist - e.r) < 0.4) && ry < 0.45 && p.state !== 'swing') { e.hit = true; if (p.shield) { p.setShield(false); audio.smash(); this.ui.flash(0.35, '#9fd8ff'); p.hurtT = 0.8; } else { this._die('hit'); return; } } else if (dist < e.r - 0.6 && !e.passedP) { e.passedP = true; this.bonus += 40; this.floaters.spawn(this._v.set(p.x, p.y + 2.3, p.z), 'HOP! +40', 'purple'); this.missions.add('hops'); } }
       }
     }
   }
@@ -234,6 +258,7 @@ export class Game {
   }
   _hit(e) {
     const p = this.player;
+    if (this.invulnT > 0) return;
     if (this.rushT > 0) { this._destroy(e, true); this.shake.add(0.12, 0.2); return; }
     if (p.shield) { p.setShield(false); audio.smash(); this.ui.flash(0.35, '#9fd8ff'); this.shake.add(0.2, 0.3); this._destroy(e, false); this.floaters.spawn(this._v.set(p.x, 2.5, p.z), 'SHIELD!', 'purple big'); p.hurtT = 0.8; return; }
     this._die('hit');
@@ -242,7 +267,7 @@ export class Game {
     const p = this.player; if (p.state === 'dead') return;
     p.die(kind); this.state = 'dead'; this.deadT = 0; this.whip.release(); this.combo = 0;
     if (kind === 'fall') { audio.fall(); } else { audio.hit(); audio.death(); this.shake.add(kind === 'crushed' ? 0.6 : 0.35, 0.5); this.ui.flash(0.5, '#ff6b6b'); this.slowmo = 0.7; }
-    this.bank += this.coins; localStorage.setItem('wr_bank', String(this.bank)); this.missions.set('dist', Math.floor(this.distance)); this.missions.runEnd(); this.ui.renderMissions(this.missions.list(), this.missions.mult, this.bank);
+    this.bank += this.coins - (this._banked || 0); this._banked = this.coins; localStorage.setItem('wr_bank', String(this.bank)); this.missions.set('dist', Math.floor(this.distance)); this.missions.runEnd(); this.ui.renderMissions(this.missions.list(), this.missions.mult, this.bank);
     audio.stopMusic();
     localStorage.setItem('wr_played', '1'); this.firstRun = false;
     const sc = this.score; const newBest = sc > this.best; if (newBest) { this.best = sc; localStorage.setItem('wr_best', String(sc)); }
@@ -278,6 +303,7 @@ export class Game {
     // speed & level
     const base = Math.min(MAX_SPEED, BASE_SPEED + (this.level - 1) * 0.75);
     this.boost = damp(this.boost, 1, 1.2, dt); if (p.state === 'stumble') this.stumbleMult = damp(this.stumbleMult, 1, 1.6, dt); else this.stumbleMult = damp(this.stumbleMult, 1, 4, dt);
+    if (this.invulnT > 0) this.invulnT -= dt;
     if (this.rushT > 0) { this.rushT -= dt; if (this.rushT <= 0) this._endRush(); }
     const rushMult = this.rushT > 0 ? 1.28 : 1;
     const target = base * this.boost * this.stumbleMult * rushMult * (p.state === 'fall' ? 0.5 : 1);
@@ -368,31 +394,32 @@ export class Game {
         case 'golem': if (!airborne && laneHit && Math.abs(dz) < 1.1 && ry < 3.2) this._hit(e); break;
         case 'totem': if (!airborne && laneHit && Math.abs(dz) < 0.95 && ry < 4.0) this._hit(e); break;
         case 'pillar': if (!airborne && Math.abs(dz) < 0.75 && (e.opts.long || laneHit) && ry < 0.8) this._hit(e); break;
-        case 'crates': if (!airborne && laneHit && Math.abs(dz) < 0.9 && ry < e.height - 0.3) { this._destroy(e, false); if (this.rushT <= 0 && !p.shield) { if (this.boulder.near) { this._die('crushed'); return; } this.boulder.alert(); p.stumble(); this.stumbleMult = 0.45; this.combo = 0; audio.stumble(); this.shake.add(0.15, 0.25); this.floaters.spawn(this._v.set(e.x, e.y + 2.5, e.z), 'OOF!', ''); } } break;
+        case 'crates': if (!airborne && laneHit && Math.abs(dz) < 0.9 && ry < e.height - 0.3) { this._destroy(e, false); if (this.rushT <= 0 && !p.shield && !(this.invulnT > 0)) { if (this.boulder.near) { this._die('crushed'); return; } this.boulder.alert(); p.stumble(); this.stumbleMult = 0.45; this.combo = 0; audio.stumble(); this.shake.add(0.15, 0.25); this.floaters.spawn(this._v.set(e.x, e.y + 2.5, e.z), 'OOF!', ''); } } break;
       }
       if (p.state === 'dead') return;
     }
   }
   _updateCamera(dt) {
+    // Stiff follow (low lag, no roll, almost no vertical bob): smooth-but-floaty cameras cause motion sickness in runners.
     const p = this.player; const cam = this.camera;
     const portrait = window.innerHeight > window.innerWidth;
     const swinging = p.state === 'swing'; const base = this.world.heightAt(p.z); const rel = p.y - base;
-    const yFollow = base + (p.state === 'dead' && p.deathKind === 'fall' ? Math.max(rel * 0.3, -3) : Math.max(rel, -2) * (swinging ? 0.8 : 0.55));
+    const follow = p.state === 'dead' && p.deathKind === 'fall' ? Math.max(rel * 0.3, -3) : swinging ? rel * 0.55 : Math.max(rel, 0) * 0.18;
     const chased = this.boulder && this.boulder.near && this.state !== 'menu';
-    const back = (portrait ? 6.7 : 5.7) + (swinging ? 1.6 : 0) + (chased ? 4.5 : 0), up = (portrait ? 3.9 : 3.3) + (swinging ? 1.0 : 0) + (chased ? 3.4 : 0);
-    const tx = p.x * 0.55, ty = up + yFollow, tz = p.z + back;
-    this._camPos.x = damp(this._camPos.x, tx, 6, dt); this._camPos.y = damp(this._camPos.y, ty, 5, dt); this._camPos.z = damp(this._camPos.z - p.z, back, 5, dt) + p.z;
+    const back = (portrait ? 6.7 : 5.7) + (swinging ? 1.4 : 0) + (chased ? 3.5 : 0), up = (portrait ? 3.9 : 3.3) + (swinging ? 0.8 : 0) + (chased ? 2.4 : 0);
+    this._camBase = this._camBase === undefined ? base : damp(this._camBase, base, 12, dt);
+    this._camPos.x = damp(this._camPos.x, p.x * 0.4, 14, dt);
+    this._camPos.y = damp(this._camPos.y, this._camBase + up + follow, swinging ? 7 : 14, dt);
+    this._camBack = this._camBack === undefined ? back : damp(this._camBack, back, 6, dt); this._camPos.z = p.z + this._camBack;
     cam.position.copy(this._camPos).add(this.shake.off);
-    const lookZ = p.z - (chased ? 6.5 : 9);
-    this._look.set(p.x * 0.35 + bendX(lookZ, cam.position.z) * 0.85, 1.7 + base + (yFollow - base) * 0.7 - (swinging ? 0.8 : 0) + (this.world.heightAt(p.z - 9) - base) * 0.6, lookZ);
+    const lookZ = p.z - 9;
+    this._look.set(p.x * 0.3 + bendX(lookZ, cam.position.z) * 0.4, this._camBase + 1.7 + follow * 0.6 + (this.world.heightAt(lookZ) - base) * 0.4 - (swinging ? 0.6 : 0), lookZ);
     cam.lookAt(this._look);
-    // lean the camera a little into the turn
-    const turn = curveDD(p.z - 12); this._roll = damp(this._roll || 0, clamp(-turn * 9, -0.07, 0.07), 3, dt); cam.rotateZ(this._roll);
-    this.world.headingD = curveD(cam.position.z); this.player.turn = turn;
-    const fovBase = portrait ? 64 : 54; const fov = fovBase + (this.speed - BASE_SPEED) * 0.5 + (this.boost - 1) * 18 + (this.rushT > 0 ? 5 : 0);
-    cam.fov = damp(cam.fov, clamp(fov, 45, 85), 4, dt); cam.updateProjectionMatrix();
-    // sun follows player for shadows
+    this.world.headingD = curveD(cam.position.z); this.player.turn = curveDD(p.z - 12);
+    const fovBase = portrait ? 64 : 54; const fov = fovBase + (this.speed - BASE_SPEED) * 0.2 + (this.boost - 1) * 6 + (this.rushT > 0 ? 2 : 0);
+    cam.fov = damp(cam.fov, clamp(fov, 45, 75), 2, dt); cam.updateProjectionMatrix();
     // the bend is computed relative to the rendering camera's z, so keep the shadow camera at the same z
     if (this.sun) { this.sun.position.set(p.x + 10, base + 22, cam.position.z); this.sun.target.position.set(p.x, base, cam.position.z - 16); this.sun.target.updateMatrixWorld(); }
   }
+
 }

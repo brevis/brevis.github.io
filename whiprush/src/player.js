@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { LANE_W, GRAVITY, JUMP_V, damp, clamp, lerp } from './config.js?v=muqzour7';
+import { LANE_W, GRAVITY, JUMP_V, damp, clamp, lerp } from './config.js?v=mur08zc2';
 
 const C = {
   skin: 0xe9b58e, hair: 0x3a2314, hat: 0x7d5533, hatBand: 0x9b3328, jacket: 0x9a6a42, jacketDark: 0x5a3a20,

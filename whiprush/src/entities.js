@@ -1,7 +1,7 @@
 import * as THREE from 'three';
-import { rand, randi, pick, HOOK_Y, HOOK_AHEAD, SIDE_HOOK_X, SIDE_HOOK_Y } from './config.js?v=muqzour7';
+import { rand, randi, pick, HOOK_Y, HOOK_AHEAD, SIDE_HOOK_X, SIDE_HOOK_Y } from './config.js?v=mur08zc2';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { islandBottom, grassCap, coinGeometry, glowTexture, rockBlob } from './geo.js?v=muqzour7';
+import { islandBottom, grassCap, coinGeometry, glowTexture, rockBlob } from './geo.js?v=mur08zc2';
 const RB = (w, h, d, r = 0.1, seg = 3) => new RoundedBoxGeometry(w, h, d, seg, r);
 const lerpN = (a, b, t) => a + (b - a) * t;
 
@@ -144,7 +144,7 @@ function makeLedge() {
   return g;
 }
 const FACTORY = { swooper: makeSwooper, charger: makeCharger, wave: makeWave, ledge: makeLedge, gate: makeGate, totem: makeTotem, urchin: makeUrchin, golem: makeGolem, crates: makeCrates, pillar: makePillar, hook: makeHook, powerup: makePowerup };
-const POOL_SIZE = { swooper: 10, charger: 10, wave: 8, ledge: 6, gate: 3, totem: 12, urchin: 36, golem: 14, crates: 14, pillar: 12, hook: 18, powerup: 6 };
+const POOL_SIZE = { swooper: 14, charger: 14, wave: 8, ledge: 8, gate: 4, totem: 16, urchin: 50, golem: 20, crates: 20, pillar: 16, hook: 26, powerup: 8 };
 
 export class Entities {
   constructor(scene) {
@@ -154,7 +154,7 @@ export class Entities {
       for (let i = 0; i < POOL_SIZE[type]; i++) { const m = FACTORY[type](); m.traverse((o) => { o.frustumCulled = false; }); m.visible = false; scene.add(m); this.pools[type].push({ type, mesh: m, alive: false, x: 0, y: 0, z: 0, lane: 0, chunk: null }); }
     }
     // coins as one instanced mesh
-    this.coinMax = 220; this.coins = [];
+    this.coinMax = 320; this.coins = [];
     const cg = coinGeometry();
     this.coinMesh = new THREE.InstancedMesh(cg, M.gold, this.coinMax); this.coinMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     this.coinMesh.castShadow = true; this.coinMesh.frustumCulled = false; this.coinMesh.count = 0; scene.add(this.coinMesh);

@@ -3,7 +3,7 @@
 // aligned with the view, further ahead it follows the curve C, so the track visibly turns left and right.
 import * as THREE from 'three';
 
-const W = [[16.0, 0.0105, 0.0], [7.0, 0.027, 1.7], [2.5, 0.051, 0.4]]; // amplitude, frequency, phase
+const W = [[15.0, 0.0095, 0.0], [5.0, 0.022, 1.7]]; // amplitude, frequency, phase: long, readable turns, no short wiggle
 let strength = 1;
 export const setBendStrength = (s) => { strength = s; };
 export function curveC(z) { let s = 0; for (const [a, f, p] of W) s += a * Math.sin(z * f + p); return s * strength; }

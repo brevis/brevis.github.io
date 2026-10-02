@@ -6,15 +6,15 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
-import { normalMapFromTexture } from './geo.js?v=muqzour7';
+import { normalMapFromTexture } from './geo.js?v=mur08zc2';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { installBend, curveD, curveDD, bendX } from './bend.js?v=muqzour7';
+import { installBend, curveD, curveDD, bendX } from './bend.js?v=mur08zc2';
 installBend();
-import { Game } from './game.js?v=muqzour7';
-import { UI } from './ui.js?v=muqzour7';
-import { Input } from './input.js?v=muqzour7';
-import { audio } from './audio.js?v=muqzour7';
-import { IS_MOBILE } from './config.js?v=muqzour7';
+import { Game } from './game.js?v=mur08zc2';
+import { UI } from './ui.js?v=mur08zc2';
+import { Input } from './input.js?v=mur08zc2';
+import { audio } from './audio.js?v=mur08zc2';
+import { IS_MOBILE } from './config.js?v=mur08zc2';
 
 const canvas = document.getElementById('c');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' });
@@ -107,16 +107,16 @@ manager.onLoad = () => {
   const input = new Input(document.body);
   input.on('left', () => game.onLeft()).on('right', () => game.onRight()).on('jump', () => game.onJump()).on('whip', (d) => game.onWhip(d)).on('charge', (on) => game.onCharge(on));
   input.on('any', () => audio.init());
-  const startBtn = document.getElementById('btn-start'), retryBtn = document.getElementById('btn-retry'), menuBtn = document.getElementById('btn-menu'), muteBtn = document.getElementById('btn-mute');
+  const startBtn = document.getElementById('btn-start'), retryBtn = document.getElementById('btn-retry'), newBtn = document.getElementById('btn-new'), menuBtn = document.getElementById('btn-menu'), muteBtn = document.getElementById('btn-mute');
   const stop = (e) => { e.stopPropagation(); };
-  for (const b of [startBtn, retryBtn, menuBtn, muteBtn]) { b.addEventListener('pointerdown', stop); b.addEventListener('pointerup', stop); }
+  for (const b of [startBtn, retryBtn, newBtn, menuBtn, muteBtn]) { b.addEventListener('pointerdown', stop); b.addEventListener('pointerup', stop); }
   const begin = () => { audio.init(); game.start(); };
-  startBtn.addEventListener('click', begin); retryBtn.addEventListener('click', begin);
+  startBtn.addEventListener('click', begin); newBtn.addEventListener('click', begin); retryBtn.addEventListener('click', () => { audio.init(); game.continueRun(); });
   menuBtn.addEventListener('click', () => game.toMenu());
   const syncMute = () => { muteBtn.textContent = audio.muted ? '🔇 Muted' : '🔊 Sound'; };
   muteBtn.addEventListener('click', () => { audio.init(); audio.setMuted(!audio.muted); syncMute(); }); syncMute();
   // keyboard start
-  window.addEventListener('keydown', (e) => { if ((e.code === 'Space' || e.code === 'Enter') && game.state !== 'playing') { if (game.state === 'menu' || (game.state === 'dead' && game.deadT > 1.4)) begin(); } });
+  window.addEventListener('keydown', (e) => { if ((e.code === 'Space' || e.code === 'Enter') && game.state !== 'playing') { if (game.state === 'menu') begin(); else if (game.state === 'dead' && game.deadT > 1.2) game.continueRun(); } });
   // tap to start from menu overlay background too
   document.getElementById('menu').addEventListener('click', (e) => { if (e.target.id === 'menu') begin(); });
   ui.showMenu(game.best); ui.ready(); resize();

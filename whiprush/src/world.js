@@ -1,10 +1,11 @@
 import * as THREE from 'three';
-import { CHUNK_LEN, BRIDGE_W, GAP_LEN, HOOK_Y, HOOK_AHEAD, SIDE_HOOK_X, SIDE_HOOK_Y, LANE_W, LEVEL_DIST, rand, randi, pick, lerp } from './config.js?v=muqzour7';
-import { Entities } from './entities.js?v=muqzour7';
-import { rockColumn, rockBlob, islandBottom, grassCap, glowTexture, cloudTexture, withHeightGradient, triplanar, perFaceColors, crossBillboardGeometry } from './geo.js?v=muqzour7';
+import { CHUNK_LEN, BRIDGE_W, GAP_LEN, HOOK_Y, HOOK_AHEAD, SIDE_HOOK_X, SIDE_HOOK_Y, LANE_W, LEVEL_DIST, rand, randi, pick, lerp } from './config.js?v=mur08zc2';
+import { Entities } from './entities.js?v=mur08zc2';
+import { rockColumn, rockBlob, islandBottom, grassCap, glowTexture, cloudTexture, withHeightGradient, triplanar, perFaceColors, crossBillboardGeometry } from './geo.js?v=mur08zc2';
 import * as BGU from 'three/addons/utils/BufferGeometryUtils.js';
 
-const NUM_CHUNKS = 8;
+const NUM_CHUNKS = 10;
+const KEEP_BEHIND = 72; // metres of track kept behind the hero so a continue can respawn before the obstacle
 const PER = { near: 12, far: 8, trees: 10, bushes: 8, crystals: 6, rocks: 5, clouds: 6, islands: 2 };
 const ROCK_HSL = { h: 0.735, s: 0.56, l: 0.5, hVar: 0.02, sVar: 0.08, lVar: 0.12 };
 const GRASS_HSL = { h: 0.26, s: 0.62, l: 0.55, hVar: 0.015, sVar: 0.06, lVar: 0.07 };
@@ -521,8 +522,8 @@ export class World {
 
   update(dt, time, player) {
     const pz = player.z;
-    for (let i = 0; i < this.chunks.length; i++) { const ch = this.chunks[i]; if (ch.z0 - CHUNK_LEN > pz + 25) this._placeChunk(ch, i); }
-    this.backdrop.position.set(player.x * 0.3 + (this.headingD || 0) * 140, 46, pz - 215);
+    for (let i = 0; i < this.chunks.length; i++) { const ch = this.chunks[i]; if (ch.z0 - CHUNK_LEN > pz + KEEP_BEHIND) this._placeChunk(ch, i); }
+    this.backdrop.position.set(player.x * 0.2 + (this.headingD || 0) * 40, 46, pz - 215);
     this.mist.position.set(0, (this.heightAt(pz) || 0) - 34, pz - 150);
     for (const s of this.clouds) { s.position.x += s.userData.drift * dt; }
     // sparkles wrap around the player
