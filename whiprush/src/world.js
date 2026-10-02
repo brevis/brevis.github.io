@@ -1,7 +1,7 @@
 import * as THREE from 'three';
-import { CHUNK_LEN, BRIDGE_W, GAP_LEN, HOOK_Y, HOOK_AHEAD, LANE_W, LEVEL_DIST, rand, randi, pick, lerp } from './config.js?v=muqz8flb';
-import { Entities } from './entities.js?v=muqz8flb';
-import { rockColumn, rockBlob, islandBottom, grassCap, glowTexture, cloudTexture, withHeightGradient, triplanar, perFaceColors, crossBillboardGeometry } from './geo.js?v=muqz8flb';
+import { CHUNK_LEN, BRIDGE_W, GAP_LEN, HOOK_Y, HOOK_AHEAD, SIDE_HOOK_X, SIDE_HOOK_Y, LANE_W, LEVEL_DIST, rand, randi, pick, lerp } from './config.js?v=muqzour7';
+import { Entities } from './entities.js?v=muqzour7';
+import { rockColumn, rockBlob, islandBottom, grassCap, glowTexture, cloudTexture, withHeightGradient, triplanar, perFaceColors, crossBillboardGeometry } from './geo.js?v=muqzour7';
 import * as BGU from 'three/addons/utils/BufferGeometryUtils.js';
 
 const NUM_CHUNKS = 8;
@@ -120,7 +120,8 @@ export class World {
     this.sparkles = new THREE.Points(sg, new THREE.PointsMaterial({ map: glowTexture('rgba(255,255,255,1)', 'rgba(255,240,200,0.5)', 'rgba(255,220,150,0)'), size: 0.26, transparent: true, opacity: .8, blending: THREE.AdditiveBlending, depthWrite: false, color: 0xfff1c8, sizeAttenuation: true }));
     this.sparkles.frustumCulled = false; this.scene.add(this.sparkles);
     // backdrop painting
-    const bd = new THREE.Mesh(new THREE.PlaneGeometry(420, 280), new THREE.MeshBasicMaterial({ map: this.tex.backdrop, fog: false, depthWrite: false }));
+    const bdMat = new THREE.MeshBasicMaterial({ map: this.tex.backdrop, fog: false, depthWrite: false }); bdMat.defines = { NO_BEND: '' };
+    const bd = new THREE.Mesh(new THREE.PlaneGeometry(520, 280), bdMat);
     bd.position.set(0, 46, -215); this.scene.add(bd); this.backdrop = bd;
     this._m = new THREE.Matrix4(); this._q = new THREE.Quaternion(); this._s = new THREE.Vector3(); this._p = new THREE.Vector3(); this._e = new THREE.Euler(); this._c = new THREE.Color();
     this.islandGeo = { bottom: perFaceColors(islandBottom(7), ROCK_HSL), cap: perFaceColors(grassCap(7), GRASS_HSL) };
@@ -175,13 +176,15 @@ export class World {
     const L = this.level; const warm = ch.index < 1; const intro = ch.index < 5;
     const gapAllowed = !intro && (!this._lastGap || (L >= 3 && Math.random() < 0.45));
     ch.gap = intro ? ch.index === 4 : (gapAllowed && Math.random() < (L >= 5 ? 0.42 : L >= 2 ? 0.34 : 0.26));
+    if (this._gauntletNext) ch.gap = false;
     this._lastGap = ch.gap;
     const preLen = (CHUNK_LEN - GAP_LEN) / 2;
     ch.gapStart = z0 - preLen; ch.gapEnd = z0 - preLen - GAP_LEN;
     // ---- vertical profile ----
     ch.y0 = this.nextY; ch.h = 0; ch.skyHook = false; ch.ledge = null;
     let profile = 'flat';
-    if (ch.gap) profile = 'gap';
+    if (this._gauntletNext) { profile = 'gauntletB'; this._gauntletNext = false; }
+    else if (ch.gap) profile = 'gap';
     else if (ch.index === 2) profile = 'hill';
     else if (!intro) {
       const opts = ['flat', 'flat', 'hill', 'hill'];
@@ -191,7 +194,9 @@ export class World {
       if (this._lastProfile !== 'jumpgap') opts.push('jumpgap', 'jumpgap');
       if (L >= 2 && this._lastProfile !== 'holes') opts.push('holes', 'holes');
       if (L >= 3 && this._lastProfile !== 'hookchain' && this._lastProfile !== 'gap') opts.push('hookchain', 'hookchain');
-      profile = pick(opts);
+      if (L >= 2 && !['gap', 'hookchain', 'gauntletB'].includes(this._lastProfile) && this.spawnCount - (this._lastGauntlet || -99) > 6) opts.push('gauntlet', 'gauntlet');
+      profile = this.forceProfile || pick(opts); this.forceProfile = null; // forceProfile: QA hook to place a given section next
+      if (profile === 'gauntlet') { this._gauntletNext = true; this._lastGauntlet = this.spawnCount; }
     }
     ch.profile = profile; this._lastProfile = profile;
     ch.y1 = profile === 'up' ? ch.y0 + rand(2, 3) : profile === 'down' ? ch.y0 - rand(2, 3) : profile === 'launch' ? ch.y0 - 1.2 : ch.y0;
@@ -204,6 +209,8 @@ export class World {
     else if (profile === 'launch') ch.voids.push([0.6, 0.9, ALL]);
     else if (profile === 'jumpgap') { const len = (L >= 4 ? rand(6.5, 7.5) : rand(5, 6)) / CHUNK_LEN; ch.voids.push([0.45, 0.45 + len, ALL]); }
     else if (profile === 'hookchain') ch.voids.push([0.12, 0.93, ALL]);
+    else if (profile === 'gauntlet') ch.voids.push([0.1, 1.0001, ALL]);
+    else if (profile === 'gauntletB') ch.voids.push([0, 0.8, ALL]);
     else if (profile === 'holes') {
       // two broken stretches; the free lanes of both are at most one lane change apart and 6 m apart
       const opts = [[-1], [1], [0], [-1, 0], [0, 1], [-1, 1]]; const free = (h) => ALL.filter(l => !h.includes(l));
@@ -327,6 +334,7 @@ export class World {
       for (const tt of [0.25, 0.75]) for (const sx of [-1, 1]) { const p = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.11, 1.3, 8), this.woodMat); p.position.set(sx * 1.2, H(tt) + 0.6, ch.z0 - tt * CHUNK_LEN); p.castShadow = true; ch.group.add(p); ch.meshes.push(p); }
     }
     this._buildWalls(ch);
+    ch.group.traverse((o) => { o.frustumCulled = false; });
   }
   _placeEnvironment(ch, ci) {
     const z0 = ch.z0; const c = this._c;
@@ -385,6 +393,29 @@ export class World {
       case 4: { const hz = z0 - CHUNK_LEN / 2; E.spawn('hook', 0, 0, hz, ch, { zOffset: -HOOK_AHEAD }); for (let i = 0; i < 9; i++) { const t = i / 8; this.ents.spawnCoin(0, 0.9 + Math.sin(t * Math.PI) * 3.4, hz + 10 - t * 20, ch); } for (let i = 0; i < 4; i++) this.ents.spawnCoin(0, 3.2 - i * 0.5, hz - 12 - i * 1.8, ch); this._prevWasGap = true; break; }
     }
   }
+  // A stretch with no road at all: four hooks overhead and on both canyon walls, crossed hook-to-hook.
+  _gauntlet(ch) {
+    const E = this.ents, L = this.level;
+    if (ch.profile === 'gauntlet') {
+      const s = pick([-1, 1]);
+      const plans = [[0, s, -s, 0], [s, -s, 0, s], [0, s, -s, -s], [s, 0, -s, 0]];
+      this._gPlan = { z0: ch.z0, sides: pick(plans), rings: [-9, -20, -31, -42] };
+    }
+    const plan = this._gPlan; if (!plan) return;
+    plan.rings.forEach((rz, i) => {
+      const zRing = plan.z0 + rz; const inThis = zRing <= ch.z0 && zRing > ch.z0 - CHUNK_LEN; if (!inThis) return;
+      const side = plan.sides[i], last = i === plan.rings.length - 1;
+      const opts = side ? { side } : { zOffset: -HOOK_AHEAD };
+      if (last) opts.landDist = side ? 13 : 18; else opts.chain = true;
+      E.spawn('hook', 0, 0, side ? zRing : zRing + HOOK_AHEAD, ch, opts);
+      // coins along the expected swing path
+      if (side) { for (let k = 0; k < 5; k++) { const t = k / 4; E.spawnCoin(lerp(side * 1.1, -side * 2.3, t), lerp(0.9, 3.4, t * t) + Math.sin(t * Math.PI) * 0.6, zRing - 1.5 - t * 8, ch); } }
+      else for (let k = 0; k < 5; k++) { const t = k / 4; E.spawnCoin(0, 1.6 + Math.sin(t * Math.PI) * 3.0, zRing + 4 - t * 10, ch); }
+      // danger: floating urchins on the far side of each side swing (steer into them and you lose)
+      if (side && L >= 3) E.spawn('urchin', side * 2.4, 4.4, zRing - 6, ch, { float: true, air: true });
+      if (!side && L >= 4 && Math.random() < 0.6) E.spawn('urchin', pick([-1, 1]) * LANE_W, rand(2.5, 4.5), zRing - 7, ch, { float: true, air: true });
+    });
+  }
   // ---------- spawning ----------
   _coinLine(lane, z, n, step = 1.7, y = 0.9) { for (let i = 0; i < n; i++) this.ents.spawnCoin(lane * LANE_W, y, z - i * step, this._cur); }
   _coinArc(lane, zc, n = 5, span = 5, peak = 2.4) { for (let i = 0; i < n; i++) { const t = n === 1 ? 0.5 : i / (n - 1); const y = 0.9 + Math.sin(t * Math.PI) * (peak - 0.9); this.ents.spawnCoin(lane * LANE_W, y, zc + span / 2 - t * span, this._cur); } }
@@ -420,8 +451,10 @@ export class World {
       if (L >= 4 && Math.random() < 0.5) { const v = ch.voids[1]; const free = this._lanes().filter(l => !v[2].includes(l)); E.spawn('swooper', pick(free) * LANE_W, 0, z0 - 26, ch); }
       return;
     }
+    if (ch.profile === 'gauntlet' || ch.profile === 'gauntletB') { this._gauntlet(ch); this._prevWasGap = true; return; }
     if (ch.profile === 'hookchain') { // long chasm crossed on two hooks: swing, then whip to the next one
       const h1 = z0 - CHUNK_LEN * 0.3, h2 = z0 - CHUNK_LEN * 0.66;
+      if (L >= 4 && Math.random() < 0.5) E.spawn('hook', 0, 0, h1 - 1, ch, { side: pick([-1, 1]), chain: true }); else
       E.spawn('hook', 0, 0, h1, ch, { zOffset: -HOOK_AHEAD, chain: true });
       E.spawn('hook', 0, 0, h2, ch, { zOffset: -HOOK_AHEAD, landDist: 10 });
       for (let i = 0; i < 7; i++) { const t = i / 6; this.ents.spawnCoin(0, 1.2 + Math.sin(t * Math.PI) * 3.6, h1 + 7 - t * 13, ch); }
@@ -489,7 +522,7 @@ export class World {
   update(dt, time, player) {
     const pz = player.z;
     for (let i = 0; i < this.chunks.length; i++) { const ch = this.chunks[i]; if (ch.z0 - CHUNK_LEN > pz + 25) this._placeChunk(ch, i); }
-    this.backdrop.position.set(player.x * 0.3, 46, pz - 215);
+    this.backdrop.position.set(player.x * 0.3 + (this.headingD || 0) * 140, 46, pz - 215);
     this.mist.position.set(0, (this.heightAt(pz) || 0) - 34, pz - 150);
     for (const s of this.clouds) { s.position.x += s.userData.drift * dt; }
     // sparkles wrap around the player

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { lerp, clamp } from './config.js?v=muqz8flb';
+import { lerp, clamp } from './config.js?v=muqzour7';
 
 const N = 40, R = 6;
 // side: lateral bulge (+ = right of the throw direction), up: vertical arc, wave: travelling ripple, glow, tip size

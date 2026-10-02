@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { LANE_W, GRAVITY, JUMP_V, damp, clamp, lerp } from './config.js?v=muqz8flb';
+import { LANE_W, GRAVITY, JUMP_V, damp, clamp, lerp } from './config.js?v=muqzour7';
 
 const C = {
   skin: 0xe9b58e, hair: 0x3a2314, hat: 0x7d5533, hatBand: 0x9b3328, jacket: 0x9a6a42, jacketDark: 0x5a3a20,
@@ -154,7 +154,7 @@ export class Player {
     if (s === 'swing') {
       const sw = this.swing; sw.t = Math.min(1, sw.t + dt / sw.dur);
       const t = sw.t, it = 1 - t;
-      this.x = damp(this.x, this.lane * LANE_W, 6, dt);
+      this.x = sw.side ? it * it * sw.p0.x + 2 * it * t * sw.p1.x + t * t * sw.p2.x : damp(this.x, this.lane * LANE_W, 6, dt);
       this.y = it * it * sw.p0.y + 2 * it * t * sw.p1.y + t * t * sw.p2.y;
       this.z = it * it * sw.p0.z + 2 * it * t * sw.p1.z + t * t * sw.p2.z;
       if (t >= 1) { if (sw.chain) { this.releaseSwing(); this.vy = 5; } else { this.state = 'run'; this.stateT = 0; this.y = sw.p2.y; this.lane = Math.round(this.x / LANE_W); this.swing = null; this.landed = true; } }
@@ -223,7 +223,8 @@ export class Player {
     L(b.rotation, 'x', bodyX); L(b.position, 'y', bodyY);
     this.head.rotation.x = headX; this.hat.rotation.x = hatX;
     const tx = this.lane * LANE_W; const lean = clamp((tx - this.x) * 0.5, -0.4, 0.4);
-    L(b.rotation, 'z', -lean + bodyZ); if (spinYaw !== null) b.rotation.y = spinYaw; else L(b.rotation, 'y', -lean * 0.6 + yaw);
+    const turnLean = clamp((this.turn || 0) * (speed || 0) * (speed || 0) * 0.012, -0.28, 0.28);
+    L(b.rotation, 'z', -lean + bodyZ + turnLean); if (spinYaw !== null) b.rotation.y = spinYaw; else L(b.rotation, 'y', -lean * 0.6 + yaw);
     L(this.root.rotation, 'x', rootX);
     if (this.skinned) this._animateSkinned(dt, speed, time);
     if (this.shieldMesh.visible) { this.shieldMesh.rotation.y += dt * 1.5; this.shieldMesh.rotation.x += dt * 0.7; const sc = 1 + Math.sin(time * 5) * 0.04; this.shieldMesh.scale.set(sc, sc, sc); }

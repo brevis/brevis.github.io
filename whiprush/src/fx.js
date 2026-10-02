@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { rand } from './config.js?v=muqz8flb';
+import { rand } from './config.js?v=muqzour7';
 
 // GPU-light particle system: a single THREE.Points with CPU-updated positions/colors.
 export class Particles {
@@ -14,7 +14,8 @@ export class Particles {
     const mat = new THREE.ShaderMaterial({
       transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, vertexColors: true,
       uniforms: { },
-      vertexShader: `attribute float size; varying vec3 vC; void main(){ vC=color; vec4 mv=modelViewMatrix*vec4(position,1.0); gl_PointSize = size * (220.0/-mv.z); gl_Position=projectionMatrix*mv; }`,
+      vertexShader: `#include <common>
+attribute float size; varying vec3 vC; void main(){ vC=color; vec4 wp=modelMatrix*vec4(position,1.0); wp.x += wrBend(wp.z, cameraPosition.z); vec4 mv=viewMatrix*wp; gl_PointSize = size * (220.0/-mv.z); gl_Position=projectionMatrix*mv; }`,
       fragmentShader: `varying vec3 vC; void main(){ vec2 d=gl_PointCoord-0.5; float r=length(d); if(r>0.5) discard; float a=smoothstep(0.5,0.1,r); gl_FragColor=vec4(vC*a*1.8, a); }`,
     });
     this.points = new THREE.Points(g, mat); this.points.frustumCulled = false; this.points.renderOrder = 5;

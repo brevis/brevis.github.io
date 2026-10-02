@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import { rockBlob, perFaceColors } from './geo.js?v=muqz8flb';
-import { damp, rand } from './config.js?v=muqz8flb';
+import { rockBlob, perFaceColors } from './geo.js?v=muqzour7';
+import { damp, rand } from './config.js?v=muqzour7';
 
 // Chaser: a giant boulder that rolls up behind the player after a mistake. A second mistake while it is close = crushed.
 export class Boulder {

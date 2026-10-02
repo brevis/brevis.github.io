@@ -1,7 +1,7 @@
 import * as THREE from 'three';
-import { rand, randi, pick, HOOK_Y } from './config.js?v=muqz8flb';
+import { rand, randi, pick, HOOK_Y, HOOK_AHEAD, SIDE_HOOK_X, SIDE_HOOK_Y } from './config.js?v=muqzour7';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { islandBottom, grassCap, coinGeometry, glowTexture, rockBlob } from './geo.js?v=muqz8flb';
+import { islandBottom, grassCap, coinGeometry, glowTexture, rockBlob } from './geo.js?v=muqzour7';
 const RB = (w, h, d, r = 0.1, seg = 3) => new RoundedBoxGeometry(w, h, d, seg, r);
 const lerpN = (a, b, t) => a + (b - a) * t;
 
@@ -97,6 +97,13 @@ function makeHook() {
   const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture('rgba(255,250,220,0.9)', 'rgba(255,215,120,0.35)', 'rgba(255,190,80,0)'), color: 0xffe9a0, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0.8 })); glow.position.y = HOOK_Y; glow.scale.set(4.5, 4.5, 1); g.add(glow); g.userData.glow = glow;
   const gem = mesh(new THREE.OctahedronGeometry(0.28, 0), M.magnet, 0, HOOK_Y, 0); g.add(gem); g.userData.gem = gem;
   const halo = new THREE.Mesh(new THREE.TorusGeometry(1.25, 0.06, 6, 40), M.halo); halo.position.y = HOOK_Y; halo.visible = false; g.add(halo); g.userData.halo = halo;
+  // side variant: a rock outcrop growing out of the canyon wall with a golden arm holding the ring (mirrored per side)
+  const rig = new THREE.Group(); rig.visible = false; g.add(rig); g.userData.rig = rig; g.userData.island = island;
+  const crag = mesh(rockBlob(1, 0.28), M.rock, 2.9, 0, 0); crag.scale.set(1.9, 1.5, 1.7); rig.add(crag);
+  const craggrass = mesh(grassCap(7), M.grass, 2.9, 1.2, 0); craggrass.scale.set(1.6, 0.25, 1.4); rig.add(craggrass);
+  const arm = mesh(new THREE.CylinderGeometry(0.11, 0.14, 2.6, 8), M.gold, 1.45, 0.9, 0); arm.rotation.z = Math.PI / 2 - 0.35; rig.add(arm);
+  const elbow = mesh(new THREE.SphereGeometry(0.2, 10, 8), M.gold, 0.15, 1.35, 0); rig.add(elbow);
+  const drop = mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.5, 6), M.gold, 0.05, 1.05, 0); rig.add(drop);
   return g;
 }
 function makePowerup() {
@@ -144,7 +151,7 @@ export class Entities {
     this.scene = scene; this.pools = {}; this.active = [];
     for (const type in FACTORY) {
       this.pools[type] = [];
-      for (let i = 0; i < POOL_SIZE[type]; i++) { const m = FACTORY[type](); m.visible = false; scene.add(m); this.pools[type].push({ type, mesh: m, alive: false, x: 0, y: 0, z: 0, lane: 0, chunk: null }); }
+      for (let i = 0; i < POOL_SIZE[type]; i++) { const m = FACTORY[type](); m.traverse((o) => { o.frustumCulled = false; }); m.visible = false; scene.add(m); this.pools[type].push({ type, mesh: m, alive: false, x: 0, y: 0, z: 0, lane: 0, chunk: null }); }
     }
     // coins as one instanced mesh
     this.coinMax = 220; this.coins = [];
@@ -166,7 +173,14 @@ export class Entities {
     if (type === 'golem') { e.stomped = false; e.stompT = 0; }
     if (type === 'crates') { const n = opts.n || randi(3, 5); m.userData.boxes.forEach((b, i) => { b.visible = i < n; b.position.x = rand(-.12, .12); b.position.z = rand(-.12, .12); b.rotation.y = rand(-.25, .25); }); e.height = n * 0.9; }
     if (type === 'pillar') { m.userData.short.visible = !opts.long; m.userData.long.visible = !!opts.long; }
-    if (type === 'hook') { m.userData.halo.visible = false; m.userData.ring.scale.set(1, 1, 1); }
+    if (type === 'hook') {
+      const ud = m.userData; ud.halo.visible = false; ud.ring.scale.set(1, 1, 1); e.side = opts.side || 0;
+      const ry = e.side ? SIDE_HOOK_Y : HOOK_Y; ud.island.visible = !e.side; ud.rig.visible = !!e.side;
+      for (const o of [ud.ring, ud.glow, ud.gem, ud.halo]) o.position.y = ry;
+      ud.rig.position.set(0, ry, 0); ud.rig.scale.set(e.side || 1, 1, 1);
+      if (e.side) { e.x = e.side * SIDE_HOOK_X; m.position.x = e.x; }
+      e.ring = new THREE.Vector3(e.x, e.y + ry, z + (opts.zOffset || 0)); // where the whip latches (world, unbent)
+    }
     if (type === 'powerup') { m.userData.core.material = opts.kind === 'shield' ? M.shield : M.magnet; }
     if (type === 'ledge') { const len = opts.len || 18; e.len = len; e.top = e.y + 2.8; const ud = m.userData; ud.plat.scale.z = len; ud.plat.position.z = -len / 2; for (const t of ud.trims) { t.scale.z = len; t.position.z = -len / 2; } ud.under.forEach((c, i) => { c.position.z = -len * (0.2 + i * 0.3); }); }
     this.active.push(e); return e;

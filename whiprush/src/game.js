@@ -1,13 +1,14 @@
 import * as THREE from 'three';
-import { LANE_W, HOOK_Y, HOOK_AHEAD, GAP_LEN, CHUNK_LEN, BASE_SPEED, MAX_SPEED, LEVEL_DIST, RUSH_COMBO, RUSH_TIME, IS_MOBILE, clamp, lerp, damp } from './config.js?v=muqz8flb';
+import { SIDE_HOOK_X, LANE_W, HOOK_Y, HOOK_AHEAD, GAP_LEN, CHUNK_LEN, BASE_SPEED, MAX_SPEED, LEVEL_DIST, RUSH_COMBO, RUSH_TIME, IS_MOBILE, clamp, lerp, damp } from './config.js?v=muqzour7';
 const CHARGE_TIME = 0.42;
-import { Player } from './player.js?v=muqz8flb';
-import { Whip } from './whip.js?v=muqz8flb';
-import { World } from './world.js?v=muqz8flb';
-import { Particles, Debris, Shake, Floaters } from './fx.js?v=muqz8flb';
-import { audio } from './audio.js?v=muqz8flb';
-import { Missions } from './missions.js?v=muqz8flb';
-import { Boulder } from './boulder.js?v=muqz8flb';
+import { Player } from './player.js?v=muqzour7';
+import { Whip } from './whip.js?v=muqzour7';
+import { World } from './world.js?v=muqzour7';
+import { Particles, Debris, Shake, Floaters } from './fx.js?v=muqzour7';
+import { audio } from './audio.js?v=muqzour7';
+import { Missions } from './missions.js?v=muqzour7';
+import { Boulder } from './boulder.js?v=muqzour7';
+import { bendX, curveD, curveDD } from './bend.js?v=muqzour7';
 
 const GRAB_MIN = 1.5, GRAB_MAX = 15, WHIP_RANGE = 9.5;
 
@@ -67,7 +68,7 @@ export class Game {
     const p = this.player; if (p.state === 'dead') return;
     if (p.state === 'swing') {
       const t = p.swing ? p.swing.t : 0;
-      const next = t >= 0.3 ? this._hookInWindow(true) : null; // swing straight onto the next hook
+      const next = t >= 0.3 ? this._hookInWindow(true, dir) : null; // swing straight onto the next hook
       if (next) { this.whip.release(); this._grab(next); this.bonus += 150; this.floaters.spawn(this._v.set(p.x, p.y + 2.4, p.z), 'CHAIN! +150', 'gold big'); return; }
       if (t < 0.55) return; // too early: the whip holds on
       const perfect = t <= 0.78; p.releaseSwing(); this.whip.release(); this.ui.hideHint();
@@ -79,7 +80,7 @@ export class Game {
       return;
     }
     // 1) hook grab (any whip input)
-    if (dir !== 'spin') { const hook = this._hookInWindow(); if (hook) { this.charging = false; this._grab(hook); return; } }
+    if (dir !== 'spin') { const hook = this._hookInWindow(false, dir); if (hook) { this.charging = false; this._grab(hook); return; } }
     // 2) airborne + low = ground slam
     if (p.state === 'jump' && dir === 'low') {
       if (this.slamCD > 0 || !p.slam()) return; this.slamCD = 0.5;
@@ -136,22 +137,40 @@ export class Game {
     this.shake.add(n ? 0.2 : 0.08, 0.3); if (n) this.hitstop = Math.max(this.hitstop, 0.06);
     this.floaters.spawn(this._v.set(p.x, p.y + 2.6, p.z), n ? `WHIRLWIND x${n}` : 'WHIRLWIND', 'gold big');
   }
-  _hookInWindow(fromSwing = false) {
+  // Best hook to latch onto. Taps on the left/right edge (or Q/E) prefer a hook on that side; any tap still takes the only hook in reach.
+  _hookInWindow(fromSwing = false, dir = 'fwd') {
     const p = this.player; if (!(p.state === 'run' || p.state === 'jump' || p.state === 'fall' || p.state === 'stumble' || (fromSwing && p.state === 'swing'))) return null;
-    for (const e of this.world.ents.active) { if (e.type !== 'hook' || !e.alive || e.used) continue; const dz = p.z - e.z; const min = e.opts.landDist ? -3 : GRAB_MIN; if (dz >= min && dz <= GRAB_MAX) return e; }
-    return null;
+    const want = dir === 'left' ? -1 : dir === 'right' ? 1 : 0; let best = null, bestScore = -1e9;
+    for (const e of this.world.ents.active) {
+      if (e.type !== 'hook' || !e.alive || e.used) continue;
+      const rz = e.ring ? e.ring.z : e.z - HOOK_AHEAD; const dz = p.z - rz;
+      const min = e.side ? -1.5 : (e.opts.landDist || e.opts.chain) ? 2 : GRAB_MIN + HOOK_AHEAD, max = e.side ? 15 : GRAB_MAX + HOOK_AHEAD;
+      if (dz < min || dz > max) continue;
+      const score = (e.side === want ? 100 : 0) - dz;
+      if (score > bestScore) { bestScore = score; best = e; }
+    }
+    return best;
   }
   _grab(hook) {
     const p = this.player; hook.used = true; hook.mesh.userData.halo.visible = false; this.ui.hideHint(); this.swingsThisRun = (this.swingsThisRun || 0) + 1; this._releaseHintShown = false;
-    const gy = hook.gy || 0; const chain = !!hook.opts.chain; const lz = hook.z - (chain ? 6 : hook.opts.landDist || GAP_LEN / 2 + 4.5);
-    const p1 = new THREE.Vector3(0, gy + 8.2, hook.z + 0.5), p2 = new THREE.Vector3(0, chain ? gy + 3 : this.world.heightAt(lz), lz);
-    const len = Math.hypot(p.x, p.y - gy - 4, p.z - p1.z) + Math.hypot(p1.z - p2.z, 4);
-    const dur = clamp(len / (this.speed * 1.45), 0.75, 1.6);
-    p.startSwing(p1, p2, dur); if (p.swing) p.swing.chain = chain; if (chain && this.firstRun !== false) this._chainHint = true;
-    this.whip.grab(this._v.set(hook.x, gy + HOOK_Y, hook.z - HOOK_AHEAD).clone()); this.missions.add('swings');
+    const gy = hook.gy || 0; const R = hook.ring || this._v.set(hook.x, gy + HOOK_Y, hook.z - HOOK_AHEAD).clone(); const side = hook.side || 0;
+    const landDist = hook.opts.landDist; const chain = !landDist && (!!hook.opts.chain || !!side);
+    let p1, p2;
+    if (side) { // side hook: a pendulum that dips under the arm and throws the hero across the lanes
+      p1 = new THREE.Vector3(side * 1.1, gy + 0.8, R.z - 1.5);
+      if (landDist) { const lz = R.z - landDist; p2 = new THREE.Vector3(-side * LANE_W, this.world.heightAt(lz), lz); }
+      else p2 = new THREE.Vector3(-side * 2.3, gy + 3.4, R.z - 9.5);
+    } else {
+      const lz = hook.z - (chain ? 6 : landDist || GAP_LEN / 2 + 4.5);
+      p1 = new THREE.Vector3(0, gy + 8.2, hook.z + 0.5); p2 = new THREE.Vector3(0, chain ? gy + 3 : this.world.heightAt(lz), lz);
+    }
+    const len = Math.hypot(p.x - p1.x, p.y - p1.y, p.z - p1.z) + Math.hypot(p1.x - p2.x, p1.y - p2.y, p1.z - p2.z);
+    const dur = clamp(len / (this.speed * 1.45), side ? 0.7 : 0.75, 1.6);
+    p.startSwing(p1, p2, dur); if (p.swing) { p.swing.chain = chain; p.swing.side = side; }
+    this.whip.grab(R.clone()); this.missions.add('swings');
     audio.grab(); setTimeout(() => audio.swing(), 80);
-    this.particles.burst(this._v.set(hook.x, gy + HOOK_Y, hook.z - HOOK_AHEAD), 18, { color: 0x8ff6ff, color2: 0xffe27a, speed: 4, up: 1, size: 0.5, life: 0.6, grav: -2 });
-    this.bonus += 100; this.floaters.spawn(this._v.set(hook.x, gy + HOOK_Y - 2, hook.z - HOOK_AHEAD), 'GRAB! +100', 'gold big'); this.shake.add(0.08, 0.2);
+    this.particles.burst(R, 18, { color: 0x8ff6ff, color2: 0xffe27a, speed: 4, up: 1, size: 0.5, life: 0.6, grav: -2 });
+    this.bonus += 100; this.floaters.spawn(this._v.set(R.x, R.y - 2, R.z), side ? (side < 0 ? '← GRAB! +100' : 'GRAB! → +100') : 'GRAB! +100', 'gold big'); this.shake.add(0.08, 0.2);
   }
   _destroy(e, byWhip, how = 'whip', mult = 1) {
     const pos = this._v.set(e.x, e.y + 1, e.z).clone();
@@ -297,9 +316,9 @@ export class Game {
     if (hook !== this.hookTarget) {
       if (this.hookTarget) this.hookTarget.mesh.userData.halo.visible = false;
       this.hookTarget = hook;
-      if (hook) { hook.mesh.userData.halo.visible = true; this.ui.showHint(IS_MOBILE ? 'TAP TO GRAB!' : 'SPACE TO GRAB!', 1.3); }
+      if (hook) { hook.mesh.userData.halo.visible = true; const sd = hook.side || 0; this.ui.showHint(sd ? (IS_MOBILE ? (sd < 0 ? '← TAP LEFT EDGE' : 'TAP RIGHT EDGE →') : (sd < 0 ? '← Q / SPACE' : 'E / SPACE →')) : (IS_MOBILE ? 'TAP TO GRAB!' : 'SPACE TO GRAB!'), 1.3); }
     }
-    { const ahead = w.chunkAt(p.z - 16); const prof = ahead && ahead.profile; if (prof && prof !== this._lastSeenProfile) { this._lastSeenProfile = prof; const seen = this._seenProf || (this._seenProf = {}); if (!seen[prof]) { seen[prof] = true; const H = { jumpgap: IS_MOBILE ? 'SWIPE UP: JUMP THE GAP!' : '↑ JUMP THE GAP!', holes: 'BROKEN BRIDGE: SWITCH LANES!', hookchain: 'TAP, THEN TAP AGAIN!' }; if (H[prof]) this.ui.showHint(H[prof], 1.6); } } }
+    { const ahead = w.chunkAt(p.z - 16); const prof = ahead && ahead.profile; if (prof && prof !== this._lastSeenProfile) { this._lastSeenProfile = prof; const seen = this._seenProf || (this._seenProf = {}); if (!seen[prof]) { seen[prof] = true; const H = { jumpgap: IS_MOBILE ? 'SWIPE UP: JUMP THE GAP!' : '↑ JUMP THE GAP!', holes: 'BROKEN BRIDGE: SWITCH LANES!', hookchain: 'TAP, THEN TAP AGAIN!', gauntlet: 'NO ROAD! SWING HOOK TO HOOK!' }; if (H[prof]) this.ui.showHint(H[prof], 1.6); } } }
     // tutorial hints on first run
     if (this.firstRun && !this.hintShown.jump) { for (const e of E.active) if (e.alive && e.type === 'pillar' && p.z - e.z < 14 && p.z - e.z > 0) { this.hintShown.jump = true; this.ui.showHint(IS_MOBILE ? 'SWIPE UP TO JUMP!' : '↑ TO JUMP!', 1.4); break; } }
     if (this.firstRun && !this.hintShown.whip) {
@@ -364,11 +383,16 @@ export class Game {
     const tx = p.x * 0.55, ty = up + yFollow, tz = p.z + back;
     this._camPos.x = damp(this._camPos.x, tx, 6, dt); this._camPos.y = damp(this._camPos.y, ty, 5, dt); this._camPos.z = damp(this._camPos.z - p.z, back, 5, dt) + p.z;
     cam.position.copy(this._camPos).add(this.shake.off);
-    this._look.set(p.x * 0.35, 1.7 + base + (yFollow - base) * 0.7 - (swinging ? 0.8 : 0) + (this.world.heightAt(p.z - 9) - base) * 0.6, p.z - (chased ? 6.5 : 9));
+    const lookZ = p.z - (chased ? 6.5 : 9);
+    this._look.set(p.x * 0.35 + bendX(lookZ, cam.position.z) * 0.85, 1.7 + base + (yFollow - base) * 0.7 - (swinging ? 0.8 : 0) + (this.world.heightAt(p.z - 9) - base) * 0.6, lookZ);
     cam.lookAt(this._look);
+    // lean the camera a little into the turn
+    const turn = curveDD(p.z - 12); this._roll = damp(this._roll || 0, clamp(-turn * 9, -0.07, 0.07), 3, dt); cam.rotateZ(this._roll);
+    this.world.headingD = curveD(cam.position.z); this.player.turn = turn;
     const fovBase = portrait ? 64 : 54; const fov = fovBase + (this.speed - BASE_SPEED) * 0.5 + (this.boost - 1) * 18 + (this.rushT > 0 ? 5 : 0);
     cam.fov = damp(cam.fov, clamp(fov, 45, 85), 4, dt); cam.updateProjectionMatrix();
     // sun follows player for shadows
-    if (this.sun) { this.sun.position.set(p.x + 10, base + 22, p.z + 6); this.sun.target.position.set(p.x, base, p.z - 10); this.sun.target.updateMatrixWorld(); }
+    // the bend is computed relative to the rendering camera's z, so keep the shadow camera at the same z
+    if (this.sun) { this.sun.position.set(p.x + 10, base + 22, cam.position.z); this.sun.target.position.set(p.x, base, cam.position.z - 16); this.sun.target.updateMatrixWorld(); }
   }
 }
