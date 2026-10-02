@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="theme-color" content="#6fc3ff" />
+<title>Whip Rush</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="src/style.css" />
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.170.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.170.0/examples/jsm/"
+  }
+}
+</script>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="hud" class="hidden">
+  <div class="hud-top">
+    <div class="pill" id="hud-distance">DISTANCE: 0m</div>
+    <div class="pill pill-score" id="hud-score">0</div>
+    <div class="pill pill-level" id="hud-level">LEVEL 1</div>
+  </div>
+  <div class="hud-coins"><span class="coin-ico"></span><span id="hud-coins">0</span></div>
+  <div id="hud-combo" class="combo hidden"><span id="combo-val">x2</span><span class="combo-label">COMBO</span></div>
+  <div id="hud-power" class="power hidden"></div>
+  <div id="hint" class="hint hidden"></div>
+  <div id="banner" class="banner hidden"></div>
+</div>
+
+<div id="floats"></div>
+
+<div id="menu" class="overlay">
+  <div class="menu-card">
+    <img id="logo" src="assets/logo.png" alt="Whip Rush" onerror="this.style.display='none';document.getElementById('logo-text').style.display='block'" />
+    <h1 id="logo-text" style="display:none">WHIP RUSH</h1>
+    <p class="tagline">Run. Crack. Swing.</p>
+    <div class="controls">
+      <div class="ctl"><b>Swipe / ← →</b><span>change lane</span></div>
+      <div class="ctl"><b>Swipe up / ↑</b><span>jump</span></div>
+      <div class="ctl"><b>Tap / Space</b><span>WHIP: smash ahead or grab a hook</span></div>
+    </div>
+    <div class="best" id="menu-best"></div>
+    <button id="btn-start" class="btn btn-big">TAP TO RUN</button>
+    <div class="row-small"><button id="btn-mute" class="btn btn-small">🔊 Sound</button></div>
+  </div>
+</div>
+
+<div id="gameover" class="overlay hidden">
+  <div class="menu-card">
+    <h2 id="go-title">WIPEOUT!</h2>
+    <div class="stats">
+      <div class="stat"><span>SCORE</span><b id="go-score">0</b></div>
+      <div class="stat"><span>DISTANCE</span><b id="go-dist">0m</b></div>
+      <div class="stat"><span>COINS</span><b id="go-coins">0</b></div>
+      <div class="stat"><span>BEST</span><b id="go-best">0</b></div>
+    </div>
+    <div id="go-newbest" class="newbest hidden">NEW BEST!</div>
+    <button id="btn-retry" class="btn btn-big">RUN AGAIN</button>
+    <div class="row-small"><button id="btn-menu" class="btn btn-small">Menu</button></div>
+  </div>
+</div>
+
+<div id="loading" class="overlay"><div class="loader">Loading…</div></div>
+
+<script type="module" src="src/main.js"></script>
+</body>
+</html>
