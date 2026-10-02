@@ -25,7 +25,7 @@
 <div id="hud" class="hidden">
   <div class="hud-top">
     <div class="pill" id="hud-distance">DISTANCE: 0m</div>
-    <div class="pill pill-score" id="hud-score">0</div>
+    <div class="pill pill-score"><span id="hud-score">0</span><span id="hud-mult" class="mult hidden">x2</span></div>
     <div class="pill pill-level" id="hud-level">LEVEL 1</div>
   </div>
   <div class="hud-coins"><span class="coin-ico"></span><span id="hud-coins">0</span></div>
@@ -45,10 +45,13 @@
     <p class="tagline">Run. Crack. Swing.</p>
     <div class="controls">
       <div class="ctl"><b>Swipe / ← →</b><span>change lane</span></div>
-      <div class="ctl"><b>Swipe up / ↑</b><span>jump</span></div>
+      <div class="ctl"><b>Swipe up / ↑</b><span>jump, again in air = double jump</span></div>
+      <div class="ctl"><b>Tap in air</b><span>grab a sky hook or GROUND SLAM</span></div>
       <div class="ctl"><b>Tap / Space</b><span>WHIP: smash ahead or grab a hook</span></div>
     </div>
     <div class="best" id="menu-best"></div>
+    <div class="missions" id="menu-missions"></div>
+    <div class="bank"><span class="coin-ico"></span><span id="menu-bank">0</span><span class="sep">·</span>SCORE x<span id="menu-mult">1</span></div>
     <button id="btn-start" class="btn btn-big">TAP TO RUN</button>
     <div class="row-small"><button id="btn-mute" class="btn btn-small">🔊 Sound</button></div>
   </div>
@@ -64,6 +67,7 @@
       <div class="stat"><span>BEST</span><b id="go-best">0</b></div>
     </div>
     <div id="go-newbest" class="newbest hidden">NEW BEST!</div>
+    <div class="missions" id="go-missions"></div>
     <button id="btn-retry" class="btn btn-big">RUN AGAIN</button>
     <div class="row-small"><button id="btn-menu" class="btn btn-small">Menu</button></div>
   </div>

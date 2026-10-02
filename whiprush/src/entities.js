@@ -102,8 +102,15 @@ function makeGate() {
   return g;
 }
 
-const FACTORY = { gate: makeGate, totem: makeTotem, urchin: makeUrchin, golem: makeGolem, crates: makeCrates, pillar: makePillar, hook: makeHook, powerup: makePowerup };
-const POOL_SIZE = { gate: 2, totem: 8, urchin: 22, golem: 8, crates: 10, pillar: 8, hook: 4, powerup: 4 };
+function makeLedge() {
+  const g = new THREE.Group();
+  const plat = mesh(RB(2.4, 0.5, 1, 0.08, 2), M.pedestal, 0, 2.55, -0.5); g.add(plat); g.userData.plat = plat;
+  const trimL = mesh(new THREE.BoxGeometry(0.08, 0.08, 1), M.gold, -1.16, 2.78, -0.5); g.add(trimL); const trimR = trimL.clone(); trimR.position.x = 1.16; g.add(trimR); g.userData.trims = [trimL, trimR];
+  const under = []; for (let i = 0; i < 3; i++) { const c = mesh(new THREE.OctahedronGeometry(0.35, 0), M.magnet, 0, 2.0, 0); c.scale.set(0.7, 1.6, 0.7); g.add(c); under.push(c); } g.userData.under = under;
+  return g;
+}
+const FACTORY = { ledge: makeLedge, gate: makeGate, totem: makeTotem, urchin: makeUrchin, golem: makeGolem, crates: makeCrates, pillar: makePillar, hook: makeHook, powerup: makePowerup };
+const POOL_SIZE = { ledge: 4, gate: 2, totem: 8, urchin: 22, golem: 8, crates: 10, pillar: 8, hook: 4, powerup: 4 };
 
 export class Entities {
   constructor(scene) {
@@ -122,16 +129,18 @@ export class Entities {
   }
   spawn(type, x, y, z, chunk, opts = {}) {
     const e = this.pools[type].find(e => !e.alive); if (!e) return null;
-    e.alive = true; e.x = x; e.y = y; e.z = z; e.lane = Math.round(x / 2.2); e.chunk = chunk; e.opts = opts; e.t = 0; e.used = false; e.dying = 0;
-    const m = e.mesh; m.visible = true; m.position.set(x, y, z + (opts.zOffset || 0)); m.rotation.set(0, 0, 0); m.scale.set(1, 1, 1);
+    const gy = this.heightAt ? this.heightAt(z) : 0;
+    e.alive = true; e.x = x; e.y = y + gy; e.gy = gy; e.z = z; e.lane = Math.round(x / 2.2); e.chunk = chunk; e.opts = opts; e.t = 0; e.used = false; e.dying = 0; e.passed = false;
+    const m = e.mesh; m.visible = true; m.position.set(x, e.y, z + (opts.zOffset || 0)); m.rotation.set(0, 0, 0); m.scale.set(1, 1, 1);
     if (type === 'urchin') { m.rotation.y = rand(0, 6); }
     if (type === 'crates') { const n = opts.n || randi(3, 5); m.userData.boxes.forEach((b, i) => { b.visible = i < n; b.position.x = rand(-.12, .12); b.position.z = rand(-.12, .12); b.rotation.y = rand(-.25, .25); }); e.height = n * 0.9; }
     if (type === 'pillar') { m.userData.short.visible = !opts.long; m.userData.long.visible = !!opts.long; }
     if (type === 'hook') { m.userData.halo.visible = false; m.userData.ring.scale.set(1, 1, 1); }
     if (type === 'powerup') { m.userData.core.material = opts.kind === 'shield' ? M.shield : M.magnet; }
+    if (type === 'ledge') { const len = opts.len || 18; e.len = len; e.top = e.y + 2.8; const ud = m.userData; ud.plat.scale.z = len; ud.plat.position.z = -len / 2; for (const t of ud.trims) { t.scale.z = len; t.position.z = -len / 2; } ud.under.forEach((c, i) => { c.position.z = -len * (0.2 + i * 0.3); }); }
     this.active.push(e); return e;
   }
-  spawnCoin(x, y, z, chunk) { const c = this.coins.find(c => !c.alive); if (!c) return null; c.alive = true; c.x = x; c.y = y; c.z = z; c.lane = Math.round(x / 2.2); c.fly = false; c.chunk = chunk; c.t = 0; return c; }
+  spawnCoin(x, y, z, chunk) { const c = this.coins.find(c => !c.alive); if (!c) return null; const gy = this.heightAt ? this.heightAt(z) : 0; c.alive = true; c.x = x; c.y = y + gy; c.z = z; c.lane = Math.round(x / 2.2); c.fly = false; c.chunk = chunk; c.t = 0; return c; }
   release(e) { e.alive = false; if (e.type === 'coin') return; e.mesh.visible = false; const i = this.active.indexOf(e); if (i >= 0) this.active.splice(i, 1); }
   releaseChunk(chunk) { for (let i = this.active.length - 1; i >= 0; i--) if (this.active[i].chunk === chunk) this.release(this.active[i]); for (const c of this.coins) if (c.alive && c.chunk === chunk) c.alive = false; }
   releaseAll() { for (let i = this.active.length - 1; i >= 0; i--) this.release(this.active[i]); for (const c of this.coins) c.alive = false; }
@@ -149,7 +158,7 @@ export class Entities {
     for (const e of this.active) {
       e.t += dt; const m = e.mesh; const ud = m.userData;
       if (e.dying > 0) { e.dying -= dt; const k = Math.max(0, e.dying / 0.25); m.scale.set(k, k, k); if (e.dying <= 0) this.release(e); continue; }
-      if (e.z > playerZ + 4.5) { m.visible = false; continue; } else m.visible = true;
+      if ((e.type === 'ledge' ? e.z - e.len : e.z) > playerZ + 4.5) { m.visible = false; continue; } else m.visible = true;
       switch (e.type) {
         case 'urchin': ud.core.rotation.y += dt * 1.2; ud.core.rotation.x += dt * 0.5; m.position.y = e.y + (e.opts.float ? Math.sin(time * 3 + e.x) * 0.25 : 0); break;
         case 'golem': { const d = playerZ - e.z; const k = d < 14 ? Math.min(1, (14 - d) / 6) : 0; ud.armL.rotation.x = -k * 1.4 + Math.sin(time * 6) * 0.1 * k; ud.armR.rotation.x = -k * 1.4 + Math.cos(time * 6) * 0.1 * k; m.position.y = e.y + (k > 0 ? Math.abs(Math.sin(time * 8)) * 0.12 * k : 0); break; }
@@ -158,6 +167,7 @@ export class Entities {
           if (ud.halo.visible) { const s = 1 + Math.sin(time * 10) * 0.12; ud.halo.scale.set(s, s, s); ud.halo.rotation.z = -time * 2; ud.ring.scale.set(1.15, 1.15, 1.15); } break;
         case 'powerup': ud.core.rotation.y = time * 2.5; ud.core.rotation.x = time * 1.3; ud.ring.rotation.z = time * 2; m.position.y = e.y + Math.sin(time * 3) * 0.2; break;
         case 'gate': ud.gem.rotation.y = time * 2; ud.sun.rotation.z = time * 0.6; break;
+        case 'ledge': ud.under.forEach((c, i) => { c.rotation.y = time * (1 + i * 0.3); }); break;
         case 'totem': ud.head.rotation.y = time * 1.2; ud.head.position.y = 3.55 + Math.sin(time * 2 + e.z) * 0.1; break;
         case 'crates': break;
         case 'pillar': break;

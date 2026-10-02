@@ -17,7 +17,7 @@ export class Player {
     this._build();
     this.lane = 0; this.x = 0; this.y = 0; this.z = 0; this.vy = 0;
     this.state = 'run'; this.phase = 0; this.stateT = 0; this.attackT = 1; this.swing = null;
-    this.shield = false; this.shieldMesh = null; this.hurtT = 0;
+    this.shield = false; this.shieldMesh = null; this.hurtT = 0; this.world = null; this.trackY = 0; this.doubleJumped = false; this.slamming = false; this.flipT = 1; this.launched = false; this.landedSlam = false; this.crouchT = 0;
     this._buildShield();
   }
   _build() {
@@ -98,11 +98,19 @@ export class Player {
   reset() {
     this.lane = 0; this.x = 0; this.y = 0; this.z = 0; this.vy = 0; this.state = 'run'; this.phase = 0; this.stateT = 0; this.attackT = 1; this.swing = null;
     this.shield = false; this.shieldMesh.visible = false; this.hurtT = 0; this.root.rotation.set(0, 0, 0); this.body.rotation.set(0, 0, 0); this.body.position.set(0, 0, 0);
+    this.trackY = 0; this.doubleJumped = false; this.slamming = false; this.flipT = 1; this.launched = false; this.landedSlam = false; this.crouchT = 0;
   }
   get pos() { return this.root.position; }
   canSteer() { return this.state === 'run' || this.state === 'jump' || this.state === 'stumble'; }
   moveLane(d) { if (!this.canSteer()) return false; const nl = clamp(this.lane + d, -1, 1); if (nl === this.lane) return false; this.lane = nl; return true; }
-  jump() { if (this.state !== 'run' && this.state !== 'stumble') return false; this.state = 'jump'; this.vy = JUMP_V; this.stateT = 0; return true; }
+  jump() {
+    if (this.state === 'run' || this.state === 'stumble') { this.state = 'jump'; this.vy = JUMP_V; this.stateT = 0; this.doubleJumped = false; this.slamming = false; return 'single'; }
+    if (this.state === 'jump' && !this.doubleJumped && !this.slamming) { this.doubleJumped = true; this.vy = 9.8; this.flipT = 0; return 'double'; }
+    return false;
+  }
+  slam() { if (this.state !== 'jump' || this.slamming) return false; this.slamming = true; this.vy = Math.min(this.vy, -24); return true; }
+  launch(v = 12) { this.state = 'jump'; this.vy = v; this.stateT = 0; this.doubleJumped = false; this.slamming = false; this.launched = true; }
+  _land(gy) { this.y = gy; this.state = 'run'; this.stateT = 0; this.landed = true; if (this.slamming) { this.landedSlam = true; this.crouchT = 0.2; } this.slamming = false; this.doubleJumped = false; }
   attack() { this.attackT = 0; }
   startSwing(p1, p2, dur) { this.swing = { p0: new THREE.Vector3(this.x, this.y, this.z), p1, p2, dur, t: 0 }; this.state = 'swing'; this.stateT = 0; this.vy = 0; }
   releaseSwing() {
@@ -131,10 +139,16 @@ export class Player {
       else { this.vy += GRAVITY * dt; this.y = Math.max(0, this.y + this.vy * dt); this.z += speed * 0.25 * dt * Math.max(0, 1 - this.stateT * 2); }
     } else {
       this.z -= speed * dt;
-      if (s === 'fall') { this.vy += GRAVITY * dt; this.y += this.vy * dt; }
-      else if (s === 'jump') { this.vy += GRAVITY * dt; this.y += this.vy * dt; if (this.y <= 0) { this.y = 0; this.state = 'run'; this.stateT = 0; this.landed = true; } }
-      else if (s === 'stumble') { if (this.stateT > 0.9) { this.state = 'run'; this.stateT = 0; } }
       const tx = this.lane * LANE_W; this.x = damp(this.x, tx, 14, dt);
+      const W = this.world; const gy = W ? W.groundY(this.x, this.z, this.y) : 0; this.trackY = W ? W.heightAt(this.z) : 0;
+      if (s === 'fall') { this.vy += GRAVITY * dt; this.y += this.vy * dt; if (gy > -1e8 && this.vy <= 0 && this.y <= gy && this.y > gy - 1.5) this._land(gy); }
+      else if (s === 'jump') { this.vy += GRAVITY * dt; this.y += this.vy * dt; if (this.vy <= 0 && gy > -1e8 && this.y <= gy) this._land(gy); }
+      else { // run / stumble: follow the ground, drop off ledges, fall into voids, auto-launch off ramps
+        if (s === 'stumble' && this.stateT > 0.9) { this.state = 'run'; this.stateT = 0; }
+        if (gy < -1e8) { if (W && W.isLaunchVoid(this.z)) this.launch(12); else this.fall(); }
+        else if (this.y > gy + 0.45) { this.state = 'jump'; this.vy = 0; this.stateT = 0; this.doubleJumped = false; this.slamming = false; }
+        else this.y = gy;
+      }
     }
     this.root.position.set(this.x, this.y, this.z);
     this._animate(dt, speed, time);
@@ -156,6 +170,9 @@ export class Player {
     else if (s === 'swing') { const t = this.swing ? this.swing.t : 0; hipL = -0.5 + sin(time * 6) * 0.2; hipR = -0.2 + cos(time * 6) * 0.2; kneeL = -0.6; kneeR = -0.4; shL = -0.9 + sin(time * 4) * 0.2; elL = 0.6; shR = -3.05; elR = 0.1; armRz = 0.05; bodyX = -0.35 - sin(t * Math.PI) * 0.3; }
     else if (s === 'fall') { hipL = sin(time * 14) * 0.5; hipR = cos(time * 14) * 0.5; shL = -2.6; elL = 0.3; shR = -2.6; bodyX = 0.2; bodyZ = sin(time * 10) * 0.15; }
     else if (s === 'dead') { const k = Math.min(1, this.stateT * 3); if (this.deathKind === 'fall') { rootX = this.stateT * 4; hipL = 0.5; hipR = -0.5; shL = -2.5; } else { rootX = -1.5 * k; hipL = 0.3; hipR = -0.3; shL = -1.2; shR = -1.5; elR = 0.2; bodyX = 0; } }
+    if (s === 'jump' && this.slamming) { hipL = 1.1; hipR = 1.1; kneeL = -1.6; kneeR = -1.6; shL = -1.2; elL = 0.9; shR = -0.6; elR = 0.3; armRz = 0.2; bodyX = 0.25; }
+    if (this.flipT < 0.45) { this.flipT += dt; rootX = -Math.PI * 2 * Math.min(1, this.flipT / 0.45); hipL = 1.3; hipR = 1.0; kneeL = -1.8; kneeR = -1.6; shL = -2.2; }
+    if (this.crouchT > 0) { this.crouchT -= dt; const k = Math.sin(Math.min(1, this.crouchT / 0.2) * Math.PI); bodyY -= 0.25 * k; kneeL -= 0.6 * k; kneeR -= 0.6 * k; bodyX -= 0.3 * k; }
     if (this.attackT < 0.35) { const a = this.attackT / 0.35; const k = a < 0.3 ? a / 0.3 : 1 - (a - 0.3) / 0.7; shR = lerp(shR, -1.0, k); elR = lerp(elR, 0.25, k); armRz = lerp(armRz, 0.1, k); bodyX -= 0.18 * k; }
     const kA = 1 - Math.exp(-dt * 18);
     const L = (o, key, v) => { o[key] = lerp(o[key], v, kA); };
@@ -166,7 +183,7 @@ export class Player {
     this.head.rotation.x = headX; this.hat.rotation.x = hatX;
     const tx = this.lane * LANE_W; const lean = clamp((tx - this.x) * 0.5, -0.4, 0.4);
     L(b.rotation, 'z', -lean + bodyZ); L(b.rotation, 'y', -lean * 0.6);
-    L(this.root.rotation, 'x', rootX);
+    if (this.flipT < 0.45) this.root.rotation.x = rootX; else L(this.root.rotation, 'x', rootX);
     if (this.shieldMesh.visible) { this.shieldMesh.rotation.y += dt * 1.5; this.shieldMesh.rotation.x += dt * 0.7; const sc = 1 + Math.sin(time * 5) * 0.04; this.shieldMesh.scale.set(sc, sc, sc); }
     if (this.hurtT > 0) { this.hurtT -= dt; this.root.visible = Math.floor(this.hurtT * 20) % 2 === 0; } else this.root.visible = true;
   }

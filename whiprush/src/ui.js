@@ -14,8 +14,9 @@ export class UI {
     $('go-title').textContent = title || 'WIPEOUT!'; $('go-score').textContent = score; $('go-dist').textContent = `${distance}m`; $('go-coins').textContent = coins; $('go-best').textContent = best;
     $('go-newbest').classList.toggle('hidden', !newBest); this.gameover.classList.remove('hidden');
   }
-  setHUD({ score, distance, coins, level, combo, rush }) {
+  setHUD({ score, distance, coins, level, combo, rush, mult }) {
     if (score !== this._lastScore) { this.score.textContent = score; this._lastScore = score; }
+    if (mult !== this._lastMult) { this._lastMult = mult; const el = $('hud-mult'); if (el) { el.textContent = `x${mult}`; el.classList.toggle('hidden', !(mult > 1)); } }
     if (distance !== this._lastDist) { this.dist.textContent = `DISTANCE: ${distance}m`; this._lastDist = distance; }
     if (coins !== this._lastCoins) { this.coins.textContent = coins; this._lastCoins = coins; }
     if (level !== this._lastLevel) { this.level.textContent = `LEVEL ${level}`; this._lastLevel = level; }
@@ -30,6 +31,11 @@ export class UI {
     if (!list.length) { this.power.classList.add('hidden'); this.power.innerHTML = ''; return; }
     this.power.classList.remove('hidden');
     this.power.innerHTML = list.map(p => `<div class="pw">${p.name}${p.max ? `<span class="bar"><i style="width:${Math.max(0, p.t / p.max) * 100}%"></i></span>` : ''}</div>`).join('');
+  }
+  renderMissions(list, mult, bank) {
+    const html = list.map(m => `<div class="mission"><span class="mtext">${m.text}</span><span class="mbar"><i style="width:${Math.round(m.pct * 100)}%"></i></span><span class="mnum">${m.progress}/${m.target}</span></div>`).join('');
+    for (const id of ['menu-missions', 'go-missions']) { const el = $(id); if (el) el.innerHTML = html; }
+    const b = $('menu-bank'); if (b) b.textContent = bank; const mm = $('menu-mult'); if (mm) mm.textContent = mult;
   }
   showHint(text, dur = 1.2) { this.hint.textContent = text; this.hint.classList.remove('hidden'); this._hintT = dur; }
   hideHint() { this.hint.classList.add('hidden'); this._hintT = 0; }
