@@ -1,7 +1,8 @@
 import * as THREE from 'three';
-import { CHUNK_LEN, BRIDGE_W, GAP_LEN, HOOK_Y, HOOK_AHEAD, LANE_W, LEVEL_DIST, rand, randi, pick, lerp } from './config.js';
-import { Entities } from './entities.js';
-import { rockColumn, rockBlob, islandBottom, grassCap, glowTexture, cloudTexture, withHeightGradient, triplanar, perFaceColors, crossBillboardGeometry } from './geo.js';
+import { CHUNK_LEN, BRIDGE_W, GAP_LEN, HOOK_Y, HOOK_AHEAD, LANE_W, LEVEL_DIST, rand, randi, pick, lerp } from './config.js?v=muqz8flb';
+import { Entities } from './entities.js?v=muqz8flb';
+import { rockColumn, rockBlob, islandBottom, grassCap, glowTexture, cloudTexture, withHeightGradient, triplanar, perFaceColors, crossBillboardGeometry } from './geo.js?v=muqz8flb';
+import * as BGU from 'three/addons/utils/BufferGeometryUtils.js';
 
 const NUM_CHUNKS = 8;
 const PER = { near: 12, far: 8, trees: 10, bushes: 8, crystals: 6, rocks: 5, clouds: 6, islands: 2 };
@@ -52,11 +53,12 @@ export class World {
     this.scene = scene; this.tex = tex; this.ents = new Entities(scene);
     this.chunks = []; this.nextZ = 0; this.level = 1; this.spawnCount = 0;
     // materials
-    this.stoneTop = new THREE.MeshStandardMaterial({ map: tex.stone, normalMap: tex.stoneN || null, normalScale: new THREE.Vector2(0.75, 0.75), roughness: .95, metalness: 0 });
+    this.stoneTop = new THREE.MeshStandardMaterial({ color: 0xcfc6b6, map: tex.slabs || tex.stone, normalMap: tex.stoneN || null, normalScale: new THREE.Vector2(0.6, 0.6), roughness: .92, metalness: 0 });
+    this.grassEdgeMat = new THREE.MeshStandardMaterial({ map: tex.grass, color: 0xb6e07a, roughness: .95, metalness: 0 });
     this.stoneEdge = std(0x7a7267);
     this.railMat = std(0xaba291); this.colMat = std(0xb8ad9c); this.woodMat = std(0x9c6b3a); this.ropeMat = std(0x8b6a3e); this.ledgeMat = std(0xb0a28e); this.goldMat = new THREE.MeshStandardMaterial({ color: 0xf2b532, emissive: 0xc77d00, emissiveIntensity: .35, roughness: .3, metalness: .85 });
     const mkRock = (vertexColors, grad, tri) => { const m = new THREE.MeshStandardMaterial({ map: tex.rock, color: 0xffffff, roughness: .92, metalness: 0, flatShading: true, vertexColors }); triplanar(m, tri); withHeightGradient(m, grad); return m; };
-    this.rockMat = mkRock(true, { low: [0.48, 0.4, 0.95], high: [1.02, 0.98, 1.0], yMin: -36, yMax: 10 }, { scale: 0.045, strength: 0.45, brightness: 1.15 });
+    this.rockMat = mkRock(true, { low: [0.48, 0.4, 0.95], high: [1.02, 0.98, 1.0], yMin: -36, yMax: 10 }, { scale: 0.035, strength: 0.22, brightness: 1.1 });
     this.rockFarMat = mkRock(true, { low: [0.62, 0.56, 1.0], high: [1.1, 1.08, 1.02], yMin: -30, yMax: 24 }, { scale: 0.028, strength: 0.3, brightness: 1.25 });
     this.rockPlainMat = mkRock(false, { low: [0.5, 0.42, 0.95], high: [1.12, 1.08, 1.02], yMin: -36, yMax: 10 }, { scale: 0.09, strength: 0.4, brightness: 1.25 });
     this.rockPlainMat.color.setHSL(0.735, 0.5, 0.62);
@@ -64,7 +66,8 @@ export class World {
     this.grassMat = mkGrass(true); this.grassPlainMat = mkGrass(false); this.grassPlainMat.color.setHSL(0.26, 0.62, 0.55);
     const bb = (map) => new THREE.MeshStandardMaterial({ map, alphaTest: 0.5, side: THREE.DoubleSide, roughness: .95, metalness: 0, color: 0xffffff });
     this.pineMat = bb(tex.treePine); this.roundMat = bb(tex.treeRound); this.bushMat = bb(tex.bush);
-    this.crystalMat = new THREE.MeshPhysicalMaterial({ color: 0xe0b3ff, emissive: 0xb86cff, emissiveIntensity: 0.55, roughness: .15, metalness: 0, transparent: true, opacity: .92, flatShading: true });
+    this.crystalMat = new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, emissive: 0x7a4fd0, emissiveIntensity: 0.28, roughness: .32, metalness: 0, flatShading: true });
+    this.wallRockMat = this.rockMat;
     this.ents.restyle(this.rockPlainMat, this.grassPlainMat); this.ents.heightAt = (z) => this.heightAt(z);
     this._buildEnvironment();
     for (let i = 0; i < NUM_CHUNKS; i++) this.chunks.push(this._makeChunk());
@@ -87,8 +90,15 @@ export class World {
     this.pines = this._inst(bbGeo, this.pineMat, N * PER.trees, { shadow: true });
     this.rounds = this._inst(bbGeo, this.roundMat, N * PER.trees, { shadow: true });
     this.bushes = this._inst(bbGeo, this.bushMat, N * PER.bushes);
-    const cryGeo = new THREE.OctahedronGeometry(1, 0); cryGeo.scale(0.5, 1.5, 0.5);
-    this.crystals = this._inst(cryGeo, this.crystalMat, N * PER.crystals);
+    const cryGeo = (() => {
+      const body = new THREE.CylinderGeometry(0.5, 0.56, 2, 6, 1); body.translate(0, 1, 0);
+      const tip = new THREE.ConeGeometry(0.5, 0.75, 6, 1); tip.translate(0, 2.375, 0);
+      const g = BGU.mergeGeometries([body.toNonIndexed(), tip.toNonIndexed()]);
+      const p = g.attributes.position, col = new Float32Array(p.count * 3), lo = new THREE.Color(0x6f55d8), hi = new THREE.Color(0xf6d2ff), c = new THREE.Color();
+      for (let i = 0; i < p.count; i += 3) { const y = (p.getY(i) + p.getY(i + 1) + p.getY(i + 2)) / 3; c.copy(lo).lerp(hi, Math.min(1, Math.pow(y / 2.75, 0.8))).offsetHSL(rand(-0.01, 0.01), 0, rand(-0.03, 0.04)); for (let k = 0; k < 3; k++) col.set([c.r, c.g, c.b], (i + k) * 3); }
+      g.setAttribute('color', new THREE.BufferAttribute(col, 3)); g.computeVertexNormals(); return g;
+    })();
+    this.crystals = this._inst(cryGeo, this.crystalMat, N * PER.crystals, { shadow: false });
     this.rocks = this._inst(perFaceColors(rockBlob(1, 0.3), ROCK_HSL), this.rockMat, N * PER.rocks);
     // painted floating islands far away (sprites)
     this.islandSprites = [];
@@ -96,8 +106,13 @@ export class World {
     // clouds (sprites)
     const cloudTex = cloudTexture(); this.clouds = [];
     for (let i = 0; i < N * PER.clouds; i++) { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: cloudTex, transparent: true, opacity: rand(.35, .6), depthWrite: false, color: 0xeef2ff })); s.userData.drift = rand(-.4, .4); this.scene.add(s); this.clouds.push(s); }
-    const mist = new THREE.Mesh(new THREE.PlaneGeometry(600, 600), new THREE.MeshBasicMaterial({ color: 0xcdd7f5, transparent: true, opacity: .75 }));
-    mist.rotation.x = -Math.PI / 2; mist.position.y = -44; this.scene.add(mist); this.mist = mist;
+    const glowCanvas = document.createElement('canvas'); glowCanvas.width = 256; glowCanvas.height = 8; { const g2 = glowCanvas.getContext('2d'); const gr = g2.createLinearGradient(0, 0, 256, 0); gr.addColorStop(0, '#3d4fb0'); gr.addColorStop(0.32, '#6fb6ff'); gr.addColorStop(0.5, '#e8fbff'); gr.addColorStop(0.68, '#6fb6ff'); gr.addColorStop(1, '#3d4fb0'); g2.fillStyle = gr; g2.fillRect(0, 0, 256, 8); }
+    const glowTex = new THREE.CanvasTexture(glowCanvas); glowTex.colorSpace = THREE.SRGBColorSpace;
+    const mist = new THREE.Mesh(new THREE.PlaneGeometry(90, 600), new THREE.MeshBasicMaterial({ map: glowTex, fog: false, transparent: true, opacity: 0.95, depthWrite: false }));
+    mist.rotation.x = -Math.PI / 2; mist.position.y = -34; mist.renderOrder = -1; this.scene.add(mist); this.mist = mist;
+    const shaftCanvas = document.createElement('canvas'); shaftCanvas.width = 64; shaftCanvas.height = 256; { const g2 = shaftCanvas.getContext('2d'); const gr = g2.createLinearGradient(0, 256, 0, 0); gr.addColorStop(0, 'rgba(230,250,255,0.9)'); gr.addColorStop(1, 'rgba(230,250,255,0)'); g2.fillStyle = gr; g2.fillRect(0, 0, 64, 256); const gx = g2.createLinearGradient(0, 0, 64, 0); gx.addColorStop(0, 'rgba(0,0,0,1)'); gx.addColorStop(0.5, 'rgba(0,0,0,0)'); gx.addColorStop(1, 'rgba(0,0,0,1)'); g2.globalCompositeOperation = 'destination-out'; g2.fillStyle = gx; g2.fillRect(0, 0, 64, 256); }
+    const shaftTex = new THREE.CanvasTexture(shaftCanvas); this.shafts = [];
+    for (let i = 0; i < N * 2; i++) { const m = new THREE.Mesh(new THREE.PlaneGeometry(5, 34), new THREE.MeshBasicMaterial({ map: shaftTex, transparent: true, opacity: 0.16, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false })); this.scene.add(m); this.shafts.push(m); }
     // ambient sparkles
     this.sparkN = 180; const sp = new Float32Array(this.sparkN * 3); this.sparkOff = [];
     for (let i = 0; i < this.sparkN; i++) { this.sparkOff.push({ x: rand(-14, 14), y: rand(0.5, 11), z: rand(0, 90), s: rand(.4, 1.2), ph: rand(0, 6) }); }
@@ -129,8 +144,8 @@ export class World {
       const col = new THREE.Mesh(colGeo, this.colMat); col.position.y = 1.6; col.castShadow = true; col.receiveShadow = true; c.add(col);
       const cap = new THREE.Mesh(capGeo, this.colMat); cap.position.y = 3.35; cap.castShadow = true; c.add(cap);
       const band = new THREE.Mesh(bandGeo, this.goldMat); band.position.y = 2.6; c.add(band);
-      const knob = new THREE.Mesh(knobGeo, this.goldMat); knob.position.set(0, 3.95, 0); knob.castShadow = true; c.add(knob);
-      const hook = new THREE.Mesh(hookGeo, this.goldMat); hook.position.set(-sx * 0.35, 4.2, 0); hook.rotation.y = Math.PI / 2; hook.rotation.z = sx > 0 ? -0.4 : Math.PI + 0.4; hook.castShadow = true; c.add(hook);
+      const knob = new THREE.Mesh(knobGeo, this.goldMat); knob.position.set(0, 3.8, 0); knob.scale.set(1.6, 0.7, 1.6); knob.castShadow = true; c.add(knob);
+      const horn = new THREE.Mesh(this._hornGeo || (this._hornGeo = this._makeHorn()), this.goldMat); horn.position.set(sx * 0.1, 4.25, 0); horn.scale.set(sx, 1, 1); horn.castShadow = true; c.add(horn);
       g.add(c); cols.push(c);
     }
     const islands = [];
@@ -173,15 +188,32 @@ export class World {
       if (ch.y0 < 3) opts.push('up', 'up'); if (ch.y0 > -1) opts.push('down', 'down');
       if (L >= 2 && this._lastProfile !== 'launch' && ch.y0 > -2) opts.push('launch', 'launch');
       if (L >= 2 && this._lastProfile !== 'rope') opts.push('rope', 'rope');
+      if (this._lastProfile !== 'jumpgap') opts.push('jumpgap', 'jumpgap');
+      if (L >= 2 && this._lastProfile !== 'holes') opts.push('holes', 'holes');
+      if (L >= 3 && this._lastProfile !== 'hookchain' && this._lastProfile !== 'gap') opts.push('hookchain', 'hookchain');
       profile = pick(opts);
     }
     ch.profile = profile; this._lastProfile = profile;
     ch.y1 = profile === 'up' ? ch.y0 + rand(2, 3) : profile === 'down' ? ch.y0 - rand(2, 3) : profile === 'launch' ? ch.y0 - 1.2 : ch.y0;
     if (profile === 'hill') ch.h = rand(1.5, 2.6);
     ch.launchZ = z0 - CHUNK_LEN * 0.6; ch.voidEnd = z0 - CHUNK_LEN * 0.9;
+    // voids: [t0, t1, lanes[]] — lanes that are missing over that stretch
+    const ALL = [-1, 0, 1], preT = (CHUNK_LEN - GAP_LEN) / 2 / CHUNK_LEN;
+    ch.voids = [];
+    if (profile === 'gap') ch.voids.push([preT, 1 - preT, ALL]);
+    else if (profile === 'launch') ch.voids.push([0.6, 0.9, ALL]);
+    else if (profile === 'jumpgap') { const len = (L >= 4 ? rand(6.5, 7.5) : rand(5, 6)) / CHUNK_LEN; ch.voids.push([0.45, 0.45 + len, ALL]); }
+    else if (profile === 'hookchain') ch.voids.push([0.12, 0.93, ALL]);
+    else if (profile === 'holes') {
+      // two broken stretches; the free lanes of both are at most one lane change apart and 6 m apart
+      const opts = [[-1], [1], [0], [-1, 0], [0, 1], [-1, 1]]; const free = (h) => ALL.filter(l => !h.includes(l));
+      const a = pick(opts); const okB = opts.filter(b => b.join() !== a.join() && free(a).some(la => free(b).some(lb => Math.abs(la - lb) <= 1)));
+      ch.voids.push([0.18, 0.42, a], [0.62, 0.86, pick(okB)]);
+    }
     this.nextY = ch.y1;
     this._buildTrackMeshes(ch);
-    ch.edgeA.visible = ch.gap; ch.edgeA.position.set(0, ch.y0, ch.gapStart); ch.edgeB.visible = ch.gap; ch.edgeB.position.set(0, ch.y0, ch.gapEnd);
+    { const fv = ch.voids.find(v => v[2].length === 3); ch.edgeA.visible = ch.edgeB.visible = !!fv;
+      if (fv) { ch.edgeA.position.set(0, this.profileHeight(ch, fv[0]), ch.z0 - fv[0] * CHUNK_LEN); ch.edgeB.position.set(0, this.profileHeight(ch, fv[1]), ch.z0 - fv[1] * CHUNK_LEN); } }
     ch.cols.forEach((c, k) => { const sx = k % 2 ? 1 : -1; const zz = k < 2 ? z0 - 1.5 : z0 - CHUNK_LEN + 1.5; c.position.set(sx * (BRIDGE_W / 2 + 0.3), this.heightAt(zz), zz); });
     ch.islands.forEach((isl, k) => {
       const sx = k === 2 ? pick([-1, 1]) : (k ? 1 : -1); const vis = Math.random() < 0.75; isl.visible = vis; if (!vis) return;
@@ -191,6 +223,39 @@ export class World {
     this._placeEnvironment(ch, i);
     for (let k = 1; k < 60; k++) { const gz = -k * LEVEL_DIST; if (gz <= z0 && gz > z0 - CHUNK_LEN) { if (!ch.gap || gz > ch.gapStart || gz < ch.gapEnd) this.ents.spawn('gate', 0, 0, gz, ch); break; } }
     if (intro) this._intro(ch); else if (!warm) this._populate(ch);
+  }
+  _makeHorn() {
+    const pts = []; for (let i = 0; i <= 48; i++) { const u = i / 48; const th = Math.PI * 0.15 + u * Math.PI * 3.3; const r = 0.95 * (1 - u * 0.8); pts.push(new THREE.Vector3(0.15 + Math.cos(th) * r * 1.05, -0.05 + Math.sin(th) * r * 0.85, Math.sin(u * Math.PI) * 0.12)); }
+    const g = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 64, 0.16, 10, false);
+    const p = g.attributes.position; // taper toward the tip
+    const n = 65; for (let i = 0; i < p.count; i++) { const ring = Math.floor(i / 11); const u = ring / (n - 1); const c = pts[Math.min(48, Math.round(u * 48))]; const k = 1.25 - u * 0.75; p.setXYZ(i, c.x + (p.getX(i) - c.x) * k, c.y + (p.getY(i) - c.y) * k, c.z + (p.getZ(i) - c.z) * k); }
+    g.computeVertexNormals(); return g;
+  }
+  // continuous faceted canyon walls on both sides, deterministic in world z so chunks join without seams
+  _buildWalls(ch) {
+    const S = 12, z0 = ch.z0;
+    for (const side of [-1, 1]) {
+      const wx = (z) => side * (8.2 + 1.3 * Math.sin(z * 0.19 + side) + 0.7 * Math.sin(z * 0.53 + 2.1 * side));
+      const top = (z, t) => this.profileHeight(ch, t) + 1.5 + 7.5 * (0.5 + 0.5 * Math.sin(z * 0.042 + side * 1.9)) + 1.4 * Math.sin(z * 0.29 + side);
+      const rows = [0, 3.5, 9, 18, 46]; const pos = []; const capPos = [];
+      for (let i = 0; i < S; i++) {
+        const ta = i / S, tb = (i + 1) / S, za = z0 - ta * CHUNK_LEN, zb = z0 - tb * CHUNK_LEN;
+        const ya = top(za, ta), yb = top(zb, tb);
+        for (let r = 0; r < rows.length - 1; r++) {
+          const off = (z, k) => side * (k === 0 ? 0 : 0.9 * Math.sin(z * 0.47 + k * 2.1) + k * 0.35);
+          const a0 = [wx(za) + off(za, r), ya - rows[r], za], b0 = [wx(zb) + off(zb, r), yb - rows[r], zb];
+          const a1 = [wx(za) + off(za, r + 1), ya - rows[r + 1], za], b1 = [wx(zb) + off(zb, r + 1), yb - rows[r + 1], zb];
+          if (side < 0) pos.push(...a0, ...a1, ...b0, ...b0, ...a1, ...b1); else pos.push(...a0, ...b0, ...a1, ...b0, ...b1, ...a1);
+        }
+        const ia = [wx(za), ya, za], ib = [wx(zb), yb, zb], oa = [wx(za) + side * 10, ya + 0.4, za], ob = [wx(zb) + side * 10, yb + 0.4, zb];
+        if (side < 0) capPos.push(...ia, ...ib, ...oa, ...oa, ...ib, ...ob); else capPos.push(...ia, ...oa, ...ib, ...ib, ...oa, ...ob);
+      }
+      const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+      const wall = new THREE.Mesh(perFaceColors(g, { h: 0.73, s: 0.5, l: 0.44, hVar: 0.015, sVar: 0.06, lVar: 0.08 }), this.wallRockMat); wall.receiveShadow = true;
+      const cg = new THREE.BufferGeometry(); cg.setAttribute('position', new THREE.Float32BufferAttribute(capPos, 3));
+      const cap = new THREE.Mesh(perFaceColors(cg, { h: 0.27, s: 0.6, l: 0.55, hVar: 0.01, sVar: 0.05, lVar: 0.05 }), this.grassMat); cap.receiveShadow = true;
+      ch.group.add(wall); ch.group.add(cap); ch.meshes.push(wall, cap);
+    }
   }
   // ---------- track profile ----------
   profileHeight(ch, t) {
@@ -203,6 +268,7 @@ export class World {
   }
   heightAt(z) { const ch = this.chunkAt(z); if (!ch) { const last = this.chunks.reduce((a, c) => (c.z0 < a.z0 ? c : a), this.chunks[0]); return z < last.z0 - CHUNK_LEN ? last.y1 : this.chunks.reduce((a, c) => (c.z0 > a.z0 ? c : a), this.chunks[0]).y0; } return this.profileHeight(ch, (ch.z0 - z) / CHUNK_LEN); }
   isNarrow(z) { const ch = this.chunkAt(z); if (!ch || ch.profile !== 'rope') return false; const t = (ch.z0 - z) / CHUNK_LEN; return t > 0.25 && t < 0.75; }
+  voidAhead(z, x = 0) { const ch = this.chunkAt(z); if (!ch) return false; const t = (ch.z0 - z) / CHUNK_LEN; const lane = x < -1.1 ? -1 : x > 1.1 ? 1 : 0; return (ch.voids || []).some(v => t >= v[0] && t < v[1] && v[2].includes(lane)); }
   isLaunchVoid(z) { const ch = this.chunkAt(z); if (!ch || ch.profile !== 'launch') return false; const t = (ch.z0 - z) / CHUNK_LEN; return t >= 0.6 && t < 0.9; }
   // Highest standable surface at (x,z) not above y+0.5; -Infinity means void.
   groundY(x, z, y = 1e9) {
@@ -210,8 +276,9 @@ export class World {
     const t = (ch.z0 - z) / CHUNK_LEN; let g = -Infinity;
     const onBridge = Math.abs(x) < BRIDGE_W / 2;
     if (onBridge) {
-      if (ch.gap && z < ch.gapStart && z > ch.gapEnd) g = -Infinity;
-      else if (ch.profile === 'launch' && t >= 0.6 && t < 0.9) g = -Infinity;
+      const lane = x < -1.1 ? -1 : x > 1.1 ? 1 : 0;
+      let hole = false; for (const v of ch.voids || []) if (t >= v[0] && t < v[1] && v[2].includes(lane)) { hole = true; break; }
+      if (hole) g = -Infinity;
       else if (ch.profile === 'rope' && t > 0.25 && t < 0.75 && Math.abs(x) > 1.15) g = -Infinity;
       else g = this.profileHeight(ch, t);
     }
@@ -232,10 +299,26 @@ export class World {
     const H = (t) => this.profileHeight(ch, t);
     const floorMats = [this.stoneTop, this.stoneTop, this.stoneEdge]; const railMats = [this.railMat, this.railMat, this.railMat];
     const W = BRIDGE_W / 2, RX = BRIDGE_W / 2 - 0.22;
-    const floor = (t0, t1) => { this._addStrip(ch, -W, W, t0, t1, H, 1.4, floorMats); for (const sx of [-1, 1]) this._addStrip(ch, sx * RX - 0.22, sx * RX + 0.22, t0, t1, (t) => H(t) + 0.55, 0.55, railMats, false); };
-    const preT = (CHUNK_LEN - GAP_LEN) / 2 / CHUNK_LEN;
-    if (ch.profile === 'gap') { floor(0, preT); floor(1 - preT, 1); }
-    else if (ch.profile === 'launch') { floor(0, 0.6); floor(0.9, 1); }
+    const grassMats = [this.grassEdgeMat, this.grassEdgeMat, this.stoneEdge];
+    const LX = [[-W, -1.1], [-1.1, 1.1], [1.1, W]];
+    const floorLanes = (t0, t1, lanes) => {
+      if (lanes.length === 3) this._addStrip(ch, -W, W, t0, t1, H, 1.4, floorMats);
+      else for (const l of lanes) this._addStrip(ch, LX[l + 1][0], LX[l + 1][1], t0, t1, H, 1.4, floorMats);
+      for (const sx of [-1, 1]) if (lanes.includes(sx)) {
+        this._addStrip(ch, sx > 0 ? W - 0.62 : -W, sx > 0 ? W : -W + 0.62, t0, t1, (t) => H(t) + 0.07, 0.2, grassMats, false);
+        this._addStrip(ch, sx * RX - 0.24, sx * RX + 0.24, t0, t1, (t) => H(t) + 0.38, 0.4, railMats, false);
+      }
+    };
+    const floor = (t0, t1) => floorLanes(t0, t1, [-1, 0, 1]);
+    if (ch.profile !== 'rope') {
+      const cuts = new Set([0, 1]); for (const v of ch.voids || []) { cuts.add(v[0]); cuts.add(v[1]); }
+      const ts = [...cuts].sort((a, b) => a - b);
+      for (let i = 0; i < ts.length - 1; i++) {
+        const a = ts[i], b = ts[i + 1], mid = (a + b) / 2; if (b - a < 1e-4) continue;
+        const missing = new Set(); for (const v of ch.voids || []) if (mid >= v[0] && mid < v[1]) v[2].forEach(l => missing.add(l));
+        const lanes = [-1, 0, 1].filter(l => !missing.has(l)); if (lanes.length) floorLanes(a, b, lanes);
+      }
+    }
     else if (ch.profile === 'rope') {
       floor(0, 0.25); floor(0.75, 1);
       const sag = (t) => -0.35 * Math.sin(Math.PI * (t - 0.25) / 0.5);
@@ -243,7 +326,7 @@ export class World {
       for (const sx of [-1, 1]) { this._addStrip(ch, sx * 1.2 - 0.04, sx * 1.2 + 0.04, 0.25, 0.75, (t) => H(t) + 1.0 + sag(t) * 0.6, 0.08, [this.ropeMat, this.ropeMat, this.ropeMat], false); this._addStrip(ch, sx * 1.2 - 0.04, sx * 1.2 + 0.04, 0.25, 0.75, (t) => H(t) + 0.5 + sag(t) * 0.8, 0.06, [this.ropeMat, this.ropeMat, this.ropeMat], false); }
       for (const tt of [0.25, 0.75]) for (const sx of [-1, 1]) { const p = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.11, 1.3, 8), this.woodMat); p.position.set(sx * 1.2, H(tt) + 0.6, ch.z0 - tt * CHUNK_LEN); p.castShadow = true; ch.group.add(p); ch.meshes.push(p); }
     }
-    else floor(0, 1);
+    this._buildWalls(ch);
   }
   _placeEnvironment(ch, ci) {
     const z0 = ch.z0; const c = this._c;
@@ -273,9 +356,10 @@ export class World {
     while (treesLeft-- > 0) { this._hideInst(this.pines, pi); this._hideInst(this.rounds, pi); pi++; }
     while (bushesLeft-- > 0) { this._hideInst(this.bushes, bi); bi++; }
     for (let k = 0; k < PER.crystals; k++) {
-      const sx = k % 2 ? 1 : -1; const vis = Math.random() < 0.8; const s = vis ? rand(1, 3.2) : 0.001;
-      this._setInst(this.crystals, ci * PER.crystals + k, sx * rand(6.5, 12), rand(-8, 7), z0 - rand(0, CHUNK_LEN), s, s, s, rand(0, 6), rand(-.3, .3), rand(-.3, .3));
+      const sx = k % 2 ? 1 : -1; const vis = Math.random() < 0.75; const w = vis ? rand(0.9, 2.0) : 0.001; const h = vis ? rand(2.5, 6.5) : 0.001;
+      this._setInst(this.crystals, ci * PER.crystals + k, sx * rand(5.2, 7.6), ch.y0 - rand(6, 16), z0 - rand(0, CHUNK_LEN), w, h, w, rand(0, 6), rand(-.12, .12), sx * rand(0, .18));
     }
+    for (let k = 0; k < 2; k++) { const m = this.shafts[ci * 2 + k]; m.position.set(rand(-5, 5), ch.y0 - 14, z0 - rand(0, CHUNK_LEN)); m.rotation.set(0, rand(-0.6, 0.6), rand(-0.25, 0.25)); m.visible = Math.random() < 0.7; }
     for (let k = 0; k < PER.rocks; k++) {
       const sx = k % 2 ? 1 : -1; const vis = Math.random() < 0.65; const s = vis ? rand(0.8, 2.4) : 0.001;
       c.setHSL(0, 0, rand(.85, 1.05));
@@ -325,6 +409,27 @@ export class World {
       if (L >= 3) { const lane = pick([-1, 1]); E.spawn('urchin', lane * LANE_W, 0.6, z0 - 5, ch); }
       this._prevWasGap = true; return;
     }
+    if (ch.profile === 'jumpgap') { // short chasm: jump it (coins trace the jump)
+      const v = ch.voids[0]; const zc = z0 - (v[0] + v[1]) / 2 * CHUNK_LEN; const span = (v[1] - v[0]) * CHUNK_LEN + 5;
+      for (const l of L >= 3 ? [pick(this._lanes())] : this._lanes()) this._coinArc(l, zc, 6, span, 2.6);
+      if (L >= 3 && Math.random() < 0.5) E.spawn('urchin', pick(this._lanes()) * LANE_W, 0.6, z0 - 4, ch);
+      return;
+    }
+    if (ch.profile === 'holes') { // missing slabs in some lanes: switch lanes or jump
+      for (const [a, b, lanes] of ch.voids) { const free = this._lanes().filter(l => !lanes.includes(l)); const l = pick(free); this._coinLine(l, z0 - a * CHUNK_LEN + 1, 4, 1.6); }
+      if (L >= 4 && Math.random() < 0.5) { const v = ch.voids[1]; const free = this._lanes().filter(l => !v[2].includes(l)); E.spawn('swooper', pick(free) * LANE_W, 0, z0 - 26, ch); }
+      return;
+    }
+    if (ch.profile === 'hookchain') { // long chasm crossed on two hooks: swing, then whip to the next one
+      const h1 = z0 - CHUNK_LEN * 0.3, h2 = z0 - CHUNK_LEN * 0.66;
+      E.spawn('hook', 0, 0, h1, ch, { zOffset: -HOOK_AHEAD, chain: true });
+      E.spawn('hook', 0, 0, h2, ch, { zOffset: -HOOK_AHEAD, landDist: 10 });
+      for (let i = 0; i < 7; i++) { const t = i / 6; this.ents.spawnCoin(0, 1.2 + Math.sin(t * Math.PI) * 3.6, h1 + 7 - t * 13, ch); }
+      for (let i = 0; i < 7; i++) { const t = i / 6; this.ents.spawnCoin(0, 1.6 + Math.sin(t * Math.PI) * 3.4, h2 + 6 - t * 14, ch); }
+      const nU = L >= 5 ? 4 : L >= 3 ? 2 : 0;
+      for (let i = 0; i < nU; i++) { const sx = i % 2 ? 1 : -1; E.spawn('urchin', sx * LANE_W, rand(2.2, 4.8), z0 - CHUNK_LEN * (0.25 + i * 0.16), ch, { float: true, air: true }); this.ents.spawnCoin(sx * LANE_W, rand(2.5, 4), z0 - CHUNK_LEN * (0.33 + i * 0.16), ch); }
+      this._prevWasGap = true; return;
+    }
     if (ch.profile === 'rope') { // narrow bridge: center lane only; one threat mid-way at higher levels
       this._coinLine(0, z0 - 6, 4); this._coinLine(0, z0 - 17, 5, 1.6, 0.6);
       if (L >= 3 && Math.random() < 0.6) E.spawn('urchin', 0, 0.6, z0 - 15, ch);
@@ -336,8 +441,8 @@ export class World {
     const picks = slots.map((z, i) => ({ z, i })).sort(() => Math.random() - 0.5).slice(0, density).sort((a, b) => b.z - a.z);
     for (const { z } of picks) {
       const choices = ['coins', 'urchin', 'crates', 'pillar', 'urchin'];
-      if (L >= 2) choices.push('urchin2', 'coinsAll', 'urchinFloat', 'crates');
-      if (L >= 3) choices.push('golem', 'totem', 'pillarLong', 'golem');
+      if (L >= 2) choices.push('urchin2', 'coinsAll', 'urchinFloat', 'crates', 'swooper', 'swooper');
+      if (L >= 3) choices.push('golem', 'totem', 'pillarLong', 'golem', 'charger', 'charger');
       if (L >= 4) choices.push('golem2', 'mix', 'totemUrchin', 'totem');
       if (L >= 6) choices.push('wall', 'totemPair', 'golem2');
       const kind = pick(choices);
@@ -353,6 +458,8 @@ export class World {
         case 'pillar': E.spawn('pillar', lane * LANE_W, 0, z, ch); this._coinArc(lane, z, 5, 6, 2.2); break;
         case 'pillarLong': E.spawn('pillar', 0, 0, z, ch, { long: true }); this._coinArc(lane, z, 5, 6, 2.3); break;
         case 'golem': E.spawn('golem', lane * LANE_W, 0, z, ch); this._coinLine(other(lane), z + 3, 5); break;
+        case 'swooper': E.spawn('swooper', 0, 0, z, ch); this._coinLine(lane, z + 5, 4); break;
+        case 'charger': E.spawn('charger', lane * LANE_W, 0, z - 6, ch); this._coinLine(other(lane), z + 2, 5); break;
         case 'totem': E.spawn('totem', lane * LANE_W, 0, z, ch); this._coinLine(other(lane), z + 3, 5); break;
         case 'totemUrchin': { const l2 = other(lane); E.spawn('totem', lane * LANE_W, 0, z, ch); E.spawn('urchin', l2 * LANE_W, 0.6, z, ch); const free = this._lanes().find(x => x !== lane && x !== l2); this._coinLine(free, z + 3, 4); break; }
         case 'totemPair': { const l2 = other(lane); E.spawn('totem', lane * LANE_W, 0, z, ch); E.spawn('totem', l2 * LANE_W, 0, z, ch); const free = this._lanes().find(x => x !== lane && x !== l2); this._coinLine(free, z + 3, 5); break; }
@@ -383,7 +490,7 @@ export class World {
     const pz = player.z;
     for (let i = 0; i < this.chunks.length; i++) { const ch = this.chunks[i]; if (ch.z0 - CHUNK_LEN > pz + 25) this._placeChunk(ch, i); }
     this.backdrop.position.set(player.x * 0.3, 46, pz - 215);
-    this.mist.position.set(player.x, -44, pz - 150);
+    this.mist.position.set(0, (this.heightAt(pz) || 0) - 34, pz - 150);
     for (const s of this.clouds) { s.position.x += s.userData.drift * dt; }
     // sparkles wrap around the player
     const pos = this.sparkles.geometry.attributes.position;

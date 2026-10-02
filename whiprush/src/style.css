@@ -41,7 +41,7 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #5f9ff3; fon
 .power .pw { background: rgba(20,30,60,.55); border: 2px solid rgba(255,255,255,.35); border-radius: 12px; padding: 4px 10px; font-weight: 900; font-size: 13px; display: flex; gap: 6px; align-items: center; }
 .power .bar { width: 60px; height: 6px; background: rgba(255,255,255,.25); border-radius: 3px; overflow: hidden; }
 .power .bar i { display: block; height: 100%; background: var(--gold); border-radius: 3px; }
-.hint { position: absolute; left: 50%; top: 62%; transform: translateX(-50%); font-weight: 900; font-size: 26px; color: #fff; -webkit-text-stroke: 1.5px #1b2340; text-shadow: 0 3px 0 #1b2340; animation: pulse .5s ease-in-out infinite alternate; letter-spacing: 1px; }
+.hint { position: absolute; left: 50%; top: 62%; transform: translateX(-50%); white-space: nowrap; font-weight: 900; font-size: 26px; color: #fff; -webkit-text-stroke: 1.5px #1b2340; text-shadow: 0 3px 0 #1b2340; animation: pulse .5s ease-in-out infinite alternate; letter-spacing: 1px; }
 .banner { position: absolute; left: 50%; top: 36%; transform: translateX(-50%); font-weight: 900; font-size: 40px; color: var(--gold); -webkit-text-stroke: 2px #5a3a00; text-shadow: 0 5px 0 #5a3a00; animation: banner 1.6s ease-out forwards; white-space: nowrap; }
 @keyframes pulse { from { transform: translateX(-50%) scale(1); } to { transform: translateX(-50%) scale(1.12); } }
 @keyframes pop { from { transform: translateX(-50%) scale(1.6); opacity: .3; } to { transform: translateX(-50%) scale(1); opacity: 1; } }

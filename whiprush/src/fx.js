@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { rand } from './config.js';
+import { rand } from './config.js?v=muqz8flb';
 
 // GPU-light particle system: a single THREE.Points with CPU-updated positions/colors.
 export class Particles {

@@ -1,7 +1,18 @@
 import * as THREE from 'three';
-import { lerp, clamp } from './config.js';
+import { lerp, clamp } from './config.js?v=muqz8flb';
 
 const N = 40, R = 6;
+// side: lateral bulge (+ = right of the throw direction), up: vertical arc, wave: travelling ripple, glow, tip size
+const STYLE = {
+  fore: { side: 1.5, up: 0.7, wave: 1.0, glow: 1.0, tip: 1 },
+  back: { side: -1.6, up: 0.4, wave: 1.0, glow: 1.0, tip: 1 },
+  over: { side: 0.2, up: 3.2, wave: 0.6, glow: 1.6, tip: 1.4 },
+  'side-l': { side: 1.8, up: 0.5, wave: 0.8, glow: 1.1, tip: 1.1 },
+  'side-r': { side: -1.8, up: 0.5, wave: 0.8, glow: 1.1, tip: 1.1 },
+  low: { side: 0.6, up: -0.4, wave: 1.3, glow: 1.1, tip: 1.1 },
+  down: { side: 0.5, up: 0.2, wave: 0.8, glow: 1.4, tip: 1.3 },
+  slam: { side: 0.3, up: 1.6, wave: 0.6, glow: 1.6, tip: 1.3 },
+};
 function glowTexture() {
   const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d');
   const grd = g.createRadialGradient(32, 32, 0, 32, 32, 32); grd.addColorStop(0, 'rgba(255,255,255,1)'); grd.addColorStop(0.3, 'rgba(255,230,150,0.8)'); grd.addColorStop(1, 'rgba(255,200,80,0)');
@@ -31,13 +42,20 @@ export class Whip {
     this._hand = new THREE.Vector3(); this._lastHand = new THREE.Vector3();
   }
   setMode(mode) { if (mode === this.mode) return; for (let i = 0; i < N; i++) this.prev[i].copy(this.out[i]); this.blend = 0; this.mode = mode; }
-  crack(target) { this.target.copy(target); this.crackT = 0; this.setMode('crack'); }
+  // style: fore | back | over | side-l | side-r | low | spin | down | slam
+  crack(target, style = 'fore', spinFrom = 0) {
+    this.target.copy(target); this.crackT = 0; this.style = style; this.spinA0 = spinFrom;
+    this.crackDur = { fore: 0.28, back: 0.28, over: 0.38, 'side-l': 0.3, 'side-r': 0.3, low: 0.32, spin: 0.46, down: 0.26, slam: 0.3 }[style] || 0.3;
+    this.mode = 'idle'; this.setMode('crack');
+  }
+  setCharge(k) { this.charge = k; }
   grab(hookPos) { this.hook.copy(hookPos); this.setMode('swing'); }
   release() { this.setMode('idle'); }
 
   update(dt, hand, time, speed, playerState) {
     this._hand.copy(hand);
     if (this.mode === 'crack') { this.crackT += dt; if (this.crackT >= this.crackDur) this.setMode(playerState === 'swing' ? 'swing' : 'idle'); }
+    else if (this.mode === 'swing' && playerState !== 'swing') this.setMode('idle'); // landed: let go of the hook
     this.blend = Math.min(1, this.blend + dt / 0.12);
     const c = this.ctrl; let nc = 0;
     if (this.mode === 'idle' || (this.mode === 'crack' && false)) {
@@ -53,23 +71,35 @@ export class Whip {
       }
       // trailing tail
       const a2 = spin + Math.PI * 2 + 0.6; c[nc++].set(cx + Math.cos(a2) * Rr * 0.8, cy - 0.3, cz + Math.sin(a2) * Rr * 0.9 + 0.6);
-      this.mat.emissiveIntensity = lerp(this.mat.emissiveIntensity, 0.35, dt * 8);
-      this.tip.visible = false;
+      const ch = this.charge || 0;
+      this.mat.emissiveIntensity = lerp(this.mat.emissiveIntensity, 0.35 + ch * 2.2 + (ch >= 1 ? Math.sin(time * 30) * 0.6 : 0), dt * 10);
+      this.tip.visible = ch > 0.05; if (ch > 0.05) { this.tip.position.copy(c[nc - 1]); const ts = 0.5 + ch * 1.3; this.tip.scale.set(ts, ts, 1); }
+    } else if (this.mode === 'crack' && this.style === 'spin') {
+      // 360-degree horizontal lash around the hero
+      const u = clamp(this.crackT / this.crackDur, 0, 1);
+      const ext = u < 0.18 ? u / 0.18 : u > 0.82 ? (1 - u) / 0.18 : 1;
+      const a = this.spinA0 + u * Math.PI * 2.15; const R = 5.0 * ext; const K = 12;
+      for (let k = 0; k <= K; k++) { const t = k / K; const ang = a - (1 - t) * 1.4; const r = R * t; c[nc++].set(hand.x + Math.cos(ang) * r, hand.y - 0.55 * t + Math.sin(t * Math.PI) * 0.25, hand.z + Math.sin(ang) * r); }
+      this.mat.emissiveIntensity = 2.4 * (1 - u * 0.6);
+      this.tip.visible = ext > 0.3; this.tip.position.copy(c[nc - 1]); this.tip.scale.set(1.6, 1.6, 1);
     } else if (this.mode === 'crack') {
+      const S = STYLE[this.style] || STYLE.fore;
       const u = clamp(this.crackT / this.crackDur, 0, 1);
       const ext = u < 0.3 ? Math.pow(u / 0.3, 0.6) : 1 - Math.pow((u - 0.3) / 0.7, 1.6);
       const tip = this._tmp.copy(this.target).sub(hand).multiplyScalar(ext).add(hand);
       const dir = this._t.copy(this.target).sub(hand).normalize();
       const side = this._b.set(-dir.z, 0, dir.x).normalize();
-      const K = 12;
+      const K = 12; const bend = (1 - ext * 0.55);
       for (let k = 0; k <= K; k++) {
         const t = k / K; const p = c[nc++]; p.lerpVectors(hand, tip, t);
-        const amp = (0.35 + (1 - ext) * 1.1) * Math.sin(t * Math.PI);
+        const bulge = Math.sin(t * Math.PI) * bend;
+        const amp = (S.wave * 0.35 + (1 - ext) * S.wave) * Math.sin(t * Math.PI);
         const wave = Math.sin(t * Math.PI * 2.2 - u * 16) * amp;
-        p.addScaledVector(side, wave * 0.7); p.y += Math.sin(t * Math.PI) * (0.9 * (1 - ext * 0.6)) + wave * 0.45;
+        p.addScaledVector(side, wave * 0.6 + bulge * S.side);
+        p.y += bulge * S.up + wave * 0.4;
       }
-      this.mat.emissiveIntensity = u < 0.4 ? 1.0 : lerp(1.0, 0.35, (u - 0.4) / 0.6);
-      this.tip.visible = ext > 0.6; this.tip.position.copy(tip); const ts = 0.6 + ext * 0.8; this.tip.scale.set(ts, ts, 1);
+      this.mat.emissiveIntensity = u < 0.4 ? S.glow : lerp(S.glow, 0.35, (u - 0.4) / 0.6);
+      this.tip.visible = ext > 0.6; this.tip.position.copy(tip); const ts = (0.6 + ext * 0.8) * S.tip; this.tip.scale.set(ts, ts, 1);
     } else if (this.mode === 'swing') {
       const K = 12; const sag = 0.35;
       for (let k = 0; k <= K; k++) {

@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import * as BGU from 'three/addons/utils/BufferGeometryUtils.js';
-import { rand } from './config.js';
+import { rand } from './config.js?v=muqz8flb';
 
 // Deterministic-ish jitter helper: merges vertices so displaced faces stay watertight, then displaces radially (xz) and slightly in y.
 export function jitter(geo, radial = 0.18, vertical = 0.05, keepTopFlat = true) {

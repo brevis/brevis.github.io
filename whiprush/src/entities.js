@@ -1,8 +1,9 @@
 import * as THREE from 'three';
-import { rand, randi, pick, HOOK_Y } from './config.js';
+import { rand, randi, pick, HOOK_Y } from './config.js?v=muqz8flb';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { islandBottom, grassCap, coinGeometry, glowTexture, rockBlob } from './geo.js';
+import { islandBottom, grassCap, coinGeometry, glowTexture, rockBlob } from './geo.js?v=muqz8flb';
 const RB = (w, h, d, r = 0.1, seg = 3) => new RoundedBoxGeometry(w, h, d, seg, r);
+const lerpN = (a, b, t) => a + (b - a) * t;
 
 const std = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, roughness: .85, metalness: 0, flatShading: true, ...extra });
 const M = {
@@ -23,12 +24,38 @@ function mesh(geo, m, x = 0, y = 0, z = 0) { const o = new THREE.Mesh(geo, m); o
 function makeUrchin() {
   const g = new THREE.Group();
   const core = new THREE.Group(); g.add(core); g.userData.core = core;
-  core.add(mesh(new THREE.IcosahedronGeometry(0.55, 3), M.urchin));
-  const spike = new THREE.ConeGeometry(0.15, 0.6, 8);
-  const dirs = []; const n = 14; for (let i = 0; i < n; i++) { const y = 1 - (i / (n - 1)) * 2; const r = Math.sqrt(1 - y * y); const th = i * 2.399963; dirs.push(new THREE.Vector3(Math.cos(th) * r, y, Math.sin(th) * r)); }
-  for (const d of dirs) { const s = mesh(spike, M.spike); s.position.copy(d).multiplyScalar(0.72); s.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d); core.add(s); }
-  const eye = mesh(new THREE.SphereGeometry(0.13, 8, 8), M.eye, 0, 0.05, 0.52); g.add(eye);
+  core.add(mesh(new THREE.SphereGeometry(0.52, 20, 16), M.urchin));
+  const arm = new THREE.CylinderGeometry(0.075, 0.1, 0.5, 8), knob = new THREE.SphereGeometry(0.13, 10, 8);
+  const n = 12; for (let i = 0; i < n; i++) { const y = 1 - (i / (n - 1)) * 2; const r = Math.sqrt(1 - y * y); const th = i * 2.399963; const d = new THREE.Vector3(Math.cos(th) * r, y, Math.sin(th) * r);
+    const a = mesh(arm, M.spike); a.position.copy(d).multiplyScalar(0.68); a.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d); core.add(a);
+    const k = mesh(knob, M.spike); k.position.copy(d).multiplyScalar(0.95); core.add(k); }
+  const eye = mesh(new THREE.SphereGeometry(0.15, 12, 10), M.eye, 0, 0.05, 0.5); g.add(eye);
   return g;
+}
+function makeSwooper() {
+  const g = new THREE.Group();
+  const body = mesh(new THREE.SphereGeometry(0.42, 16, 12), M.urchin); body.scale.set(1, 0.85, 1.1); g.add(body);
+  for (const sx of [-1, 1]) { const ear = mesh(new THREE.ConeGeometry(0.12, 0.35, 6), M.spike, sx * 0.2, 0.42, 0.05); ear.rotation.z = -sx * 0.3; g.add(ear); g.add(mesh(new THREE.SphereGeometry(0.08, 8, 6), M.eye, sx * 0.15, 0.08, 0.38)); }
+  const wingShape = new THREE.Shape(); wingShape.moveTo(0, 0); wingShape.quadraticCurveTo(0.6, 0.55, 1.3, 0.35); wingShape.lineTo(1.05, 0.05); wingShape.lineTo(0.85, 0.2); wingShape.lineTo(0.7, -0.08); wingShape.lineTo(0.45, 0.1); wingShape.lineTo(0.25, -0.12); wingShape.lineTo(0, 0);
+  const wg = new THREE.ShapeGeometry(wingShape); const wm = new THREE.MeshStandardMaterial({ color: 0x5b3a9a, roughness: .7, side: THREE.DoubleSide });
+  const wings = []; for (const sx of [-1, 1]) { const piv = new THREE.Group(); piv.position.set(sx * 0.32, 0.1, 0); const w = new THREE.Mesh(wg, wm); w.castShadow = true; w.scale.set(sx, 1, 1); w.rotation.x = -Math.PI / 2 + 0.2; piv.add(w); g.add(piv); wings.push(piv); }
+  g.userData.wings = wings; g.userData.body = body; return g;
+}
+function makeCharger() {
+  const g = new THREE.Group(); const shell = new THREE.MeshStandardMaterial({ color: 0x8a6a4a, roughness: .7, flatShading: true });
+  const body = mesh(new THREE.SphereGeometry(0.75, 10, 8), shell, 0, 0.75, 0); body.scale.set(1, 0.75, 1.25); g.add(body);
+  const plates = new THREE.MeshStandardMaterial({ color: 0xb08a5c, roughness: .7, flatShading: true });
+  for (let i = 0; i < 3; i++) { const p = mesh(new THREE.TorusGeometry(0.6, 0.09, 6, 14, Math.PI), plates, 0, 0.82, -0.5 + i * 0.45); p.rotation.y = Math.PI / 2; p.scale.set(1, 1.05, 1); p.rotation.set(0, Math.PI / 2, 0); g.add(p); }
+  const head = mesh(new THREE.SphereGeometry(0.38, 10, 8), shell, 0, 0.62, 0.95); g.add(head);
+  const horn = mesh(new THREE.ConeGeometry(0.12, 0.55, 6), M.pedestal, 0, 0.75, 1.3); horn.rotation.x = Math.PI / 2 - 0.4; g.add(horn);
+  for (const sx of [-1, 1]) g.add(mesh(new THREE.SphereGeometry(0.07, 6, 6), M.golemEye, sx * 0.18, 0.75, 1.22));
+  const legs = []; for (const sx of [-1, 1]) for (const z of [-0.45, 0.35]) { const l = mesh(new THREE.CylinderGeometry(0.08, 0.06, 0.5, 6), shell, sx * 0.62, 0.25, z); g.add(l); legs.push(l); }
+  g.userData.legs = legs; g.userData.body = body; return g;
+}
+function makeWave() {
+  const g = new THREE.Group();
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(1, 0.32, 8, 64), new THREE.MeshStandardMaterial({ color: 0xffd08a, emissive: 0xff6a20, emissiveIntensity: 1.6, roughness: .8, transparent: true, opacity: 0.95, depthWrite: false }));
+  ring.rotation.x = -Math.PI / 2; ring.position.y = 0.3; g.add(ring); g.userData.ring = ring; return g;
 }
 function makeGolem() {
   const g = new THREE.Group();
@@ -109,8 +136,8 @@ function makeLedge() {
   const under = []; for (let i = 0; i < 3; i++) { const c = mesh(new THREE.OctahedronGeometry(0.35, 0), M.magnet, 0, 2.0, 0); c.scale.set(0.7, 1.6, 0.7); g.add(c); under.push(c); } g.userData.under = under;
   return g;
 }
-const FACTORY = { ledge: makeLedge, gate: makeGate, totem: makeTotem, urchin: makeUrchin, golem: makeGolem, crates: makeCrates, pillar: makePillar, hook: makeHook, powerup: makePowerup };
-const POOL_SIZE = { ledge: 4, gate: 2, totem: 8, urchin: 22, golem: 8, crates: 10, pillar: 8, hook: 4, powerup: 4 };
+const FACTORY = { swooper: makeSwooper, charger: makeCharger, wave: makeWave, ledge: makeLedge, gate: makeGate, totem: makeTotem, urchin: makeUrchin, golem: makeGolem, crates: makeCrates, pillar: makePillar, hook: makeHook, powerup: makePowerup };
+const POOL_SIZE = { swooper: 10, charger: 10, wave: 8, ledge: 6, gate: 3, totem: 12, urchin: 36, golem: 14, crates: 14, pillar: 12, hook: 18, powerup: 6 };
 
 export class Entities {
   constructor(scene) {
@@ -128,11 +155,15 @@ export class Entities {
     this._m = new THREE.Matrix4(); this._q = new THREE.Quaternion(); this._s = new THREE.Vector3(1, 1, 1); this._p = new THREE.Vector3(); this._e = new THREE.Euler();
   }
   spawn(type, x, y, z, chunk, opts = {}) {
-    const e = this.pools[type].find(e => !e.alive); if (!e) return null;
+    const e = this.pools[type].find(e => !e.alive); if (!e) { console.warn('pool exhausted:', type); return null; }
     const gy = this.heightAt ? this.heightAt(z) : 0;
     e.alive = true; e.x = x; e.y = y + gy; e.gy = gy; e.z = z; e.lane = Math.round(x / 2.2); e.chunk = chunk; e.opts = opts; e.t = 0; e.used = false; e.dying = 0; e.passed = false;
     const m = e.mesh; m.visible = true; m.position.set(x, e.y, z + (opts.zOffset || 0)); m.rotation.set(0, 0, 0); m.scale.set(1, 1, 1);
     if (type === 'urchin') { m.rotation.y = rand(0, 6); }
+    if (type === 'swooper') { e.phase = rand(0, 6); e.y = e.gy + 1.35; }
+    if (type === 'charger') { e.moving = false; m.rotation.y = 0; }
+    if (type === 'wave') { e.r = 1; m.userData.ring.scale.setScalar(1); m.userData.ring.material.opacity = 0.9; }
+    if (type === 'golem') { e.stomped = false; e.stompT = 0; }
     if (type === 'crates') { const n = opts.n || randi(3, 5); m.userData.boxes.forEach((b, i) => { b.visible = i < n; b.position.x = rand(-.12, .12); b.position.z = rand(-.12, .12); b.rotation.y = rand(-.25, .25); }); e.height = n * 0.9; }
     if (type === 'pillar') { m.userData.short.visible = !opts.long; m.userData.long.visible = !!opts.long; }
     if (type === 'hook') { m.userData.halo.visible = false; m.userData.ring.scale.set(1, 1, 1); }
@@ -152,7 +183,7 @@ export class Entities {
       c.t += dt;
       const bob = c.fly ? 0 : Math.sin(time * 4 + c.x + c.z * .3) * 0.08;
       this._p.set(c.x, c.y + bob, c.z); this._e.set(0, rot + c.z * 0.4, 0); this._q.setFromEuler(this._e);
-      const s = c.fly ? 1.2 : 1; this._s.set(s, s, s); this._m.compose(this._p, this._q, this._s); this.coinMesh.setMatrixAt(n++, this._m);
+      const s = c.fly ? 0.65 : 1; this._s.set(s, s, s); this._m.compose(this._p, this._q, this._s); this.coinMesh.setMatrixAt(n++, this._m);
     }
     this.coinMesh.count = n; this.coinMesh.instanceMatrix.needsUpdate = true;
     for (const e of this.active) {
@@ -160,8 +191,11 @@ export class Entities {
       if (e.dying > 0) { e.dying -= dt; const k = Math.max(0, e.dying / 0.25); m.scale.set(k, k, k); if (e.dying <= 0) this.release(e); continue; }
       if ((e.type === 'ledge' ? e.z - e.len : e.z) > playerZ + 4.5) { m.visible = false; continue; } else m.visible = true;
       switch (e.type) {
-        case 'urchin': ud.core.rotation.y += dt * 1.2; ud.core.rotation.x += dt * 0.5; m.position.y = e.y + (e.opts.float ? Math.sin(time * 3 + e.x) * 0.25 : 0); break;
-        case 'golem': { const d = playerZ - e.z; const k = d < 14 ? Math.min(1, (14 - d) / 6) : 0; ud.armL.rotation.x = -k * 1.4 + Math.sin(time * 6) * 0.1 * k; ud.armR.rotation.x = -k * 1.4 + Math.cos(time * 6) * 0.1 * k; m.position.y = e.y + (k > 0 ? Math.abs(Math.sin(time * 8)) * 0.12 * k : 0); break; }
+        case 'urchin': ud.core.rotation.y += dt * 1.2; ud.core.rotation.x += dt * 0.5; { const sq = 1 + Math.sin(time * 6 + e.z) * 0.05; ud.core.scale.set(sq, 2 - sq, sq); } m.position.y = e.y + (e.opts.float ? Math.sin(time * 3 + e.x) * 0.25 : 0); break;
+        case 'swooper': ud.wings.forEach((w, i) => { w.rotation.z = Math.sin(time * 22 + e.phase) * 0.7 * (i ? 1 : -1); }); m.position.set(e.x, e.y + Math.sin(time * 5 + e.phase) * 0.18, e.z); m.rotation.z = -Math.cos(e.t * 2.3 + e.phase) * 0.35; break;
+        case 'charger': if (e.moving) { ud.legs.forEach((l, i) => { l.rotation.x = Math.sin(time * 26 + i * 1.6) * 0.8; }); ud.body.position.y = 0.75 + Math.abs(Math.sin(time * 26)) * 0.06; } m.position.set(e.x, e.y, e.z); break;
+        case 'wave': m.position.set(e.x, e.y, e.z); ud.ring.scale.set(e.r, e.r, 1 + e.r * 0.04); ud.ring.material.opacity = Math.max(0, 1 - e.r / 19); break;
+        case 'golem': { const d = playerZ - e.z; if (e.stomped) { e.stompT += dt; const a = Math.min(1, e.stompT / 0.12); ud.armL.rotation.x = lerpN(-2.6, 0.4, a); ud.armR.rotation.x = lerpN(-2.6, 0.4, a); m.position.y = e.y; } else { const k = d < 24 ? Math.min(1, (24 - d) / 7) : 0; ud.armL.rotation.x = -k * 2.6 + Math.sin(time * 6) * 0.1 * k; ud.armR.rotation.x = -k * 2.6 + Math.cos(time * 6) * 0.1 * k; m.position.y = e.y + (k > 0 ? Math.abs(Math.sin(time * 8)) * 0.12 * k : 0); } break; }
         case 'hook': ud.ring.rotation.z = time * 1.5; ud.gem.rotation.y = time * 3; ud.gem.rotation.x = time * 1.7; m.position.y = e.y + Math.sin(time * 1.6 + e.z) * 0.2;
           { const gs = 4.2 + Math.sin(time * 3 + e.z) * 0.5 + (ud.halo.visible ? 1.5 : 0); ud.glow.scale.set(gs, gs, 1); }
           if (ud.halo.visible) { const s = 1 + Math.sin(time * 10) * 0.12; ud.halo.scale.set(s, s, s); ud.halo.rotation.z = -time * 2; ud.ring.scale.set(1.15, 1.15, 1.15); } break;

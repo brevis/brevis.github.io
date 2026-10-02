@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { LANE_W, GRAVITY, JUMP_V, damp, clamp, lerp } from './config.js';
+import { LANE_W, GRAVITY, JUMP_V, damp, clamp, lerp } from './config.js?v=muqz8flb';
 
 const C = {
   skin: 0xe9b58e, hair: 0x3a2314, hat: 0x7d5533, hatBand: 0x9b3328, jacket: 0x9a6a42, jacketDark: 0x5a3a20,
@@ -8,6 +8,27 @@ const C = {
 };
 function mesh(geo, m, x = 0, y = 0, z = 0) { const o = new THREE.Mesh(geo, m); o.position.set(x, y, z); o.castShadow = true; o.receiveShadow = false; return o; }
 const V2 = (a) => a.map(([x, y]) => new THREE.Vector2(x, y));
+// upper-arm direction in body space (x right, y up, -z forward): [wind-up, strike]
+const ARM_STYLE = {
+  fore: [[0.85, 0.7, 0.45], [-0.3, 0.15, -1]], back: [[-0.7, 0.8, 0.3], [0.9, 0.1, -0.7]], over: [[0.15, 1, 0.65], [0.1, -0.3, -1]],
+  'side-l': [[0.6, 0.8, 0.2], [-1, 0.15, -0.45]], 'side-r': [[-0.3, 0.9, 0.2], [1, 0.15, -0.45]], low: [[0.6, 0.5, 0.3], [0.2, -0.75, -0.65]],
+  spin: [[1, 0.15, 0], [1, 0.15, 0]], down: [[0.3, 0.6, -0.4], [0.2, -1, 0.15]], slam: [[0.1, 1, 0.35], [0, -0.6, -0.8]],
+};
+// Repaint the KayKit gradient atlas (8x4 cells of 128 px): blue tunic -> leather, legs -> denim, scarf -> red.
+function recolorAtlas(tex) {
+  const img = tex.image; const W = img.width, H = img.height; const c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d'); g.drawImage(img, 0, 0);
+  const cw = W / 8, chh = H / 4;
+  const paint = (col, row, top, bottom) => { const gr = g.createLinearGradient(0, row * chh, 0, (row + 1) * chh); gr.addColorStop(0, top); gr.addColorStop(1, bottom); g.fillStyle = gr; g.fillRect(col * cw, row * chh, cw, chh); };
+  // cell map found by painting debug colours: (5,0)/(6,0) tunic, (7,0) belts/straps, (3,0) buckles, (3,2) boots, (7,1) trousers, (0,1) scarf, (7,2) cuffs
+  paint(5, 0, '#a0673c', '#4a2a16'); paint(6, 0, '#a0673c', '#4a2a16');   // tunic -> brown leather jacket
+  paint(7, 0, '#5a3820', '#24140a');                                      // belts & straps -> dark leather
+  paint(3, 0, '#ffe08a', '#b07a12');                                      // buckles -> gold
+  paint(3, 2, '#86593a', '#3a2214');                                      // boots -> brown leather
+  paint(7, 1, '#6f95dc', '#2a4686');                                      // trousers -> denim
+  paint(0, 1, '#f2e7cc', '#c8b48e');                                      // scarf -> cream shirt collar
+  paint(7, 2, '#5a3820', '#24140a');                                      // cuffs -> dark leather
+  const t = new THREE.CanvasTexture(c); t.flipY = tex.flipY; t.colorSpace = THREE.SRGBColorSpace; t.wrapS = tex.wrapS; t.wrapT = tex.wrapT; t.magFilter = tex.magFilter; t.minFilter = tex.minFilter; return t;
+}
 
 export class Player {
   constructor(scene, tex = {}) {
@@ -19,9 +40,10 @@ export class Player {
     this.state = 'run'; this.phase = 0; this.stateT = 0; this.attackT = 1; this.swing = null;
     this.shield = false; this.shieldMesh = null; this.hurtT = 0; this.world = null; this.trackY = 0; this.doubleJumped = false; this.slamming = false; this.flipT = 1; this.launched = false; this.landedSlam = false; this.crouchT = 0;
     this._buildShield();
+    if (tex && tex.models && tex.models.hero) { try { this._initSkinned(tex.models); } catch (e) { console.warn('skinned hero failed, using procedural', e); } }
   }
   _build() {
-    const b = this.body; const T = this.tex;
+    const b = this.proc = new THREE.Group(); this.body.add(b); const T = this.tex;
     const RB = (w, h, d, r = 0.1, seg = 3) => new RoundedBoxGeometry(w, h, d, seg, r);
     const smooth = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, roughness: .7, metalness: 0, ...extra });
     const texd = (map, color, extra = {}) => map ? new THREE.MeshStandardMaterial({ map, color, roughness: .8, metalness: 0, ...extra }) : smooth(color, extra);
@@ -101,18 +123,20 @@ export class Player {
     this.trackY = 0; this.doubleJumped = false; this.slamming = false; this.flipT = 1; this.launched = false; this.landedSlam = false; this.crouchT = 0;
   }
   get pos() { return this.root.position; }
-  canSteer() { return this.state === 'run' || this.state === 'jump' || this.state === 'stumble'; }
+  canSteer() { return this.state === 'run' || this.state === 'jump' || this.state === 'stumble' || this.state === 'swing' || this.state === 'fall'; }
   moveLane(d) { if (!this.canSteer()) return false; const nl = clamp(this.lane + d, -1, 1); if (nl === this.lane) return false; this.lane = nl; return true; }
   jump() {
-    if (this.state === 'run' || this.state === 'stumble') { this.state = 'jump'; this.vy = JUMP_V; this.stateT = 0; this.doubleJumped = false; this.slamming = false; return 'single'; }
-    if (this.state === 'jump' && !this.doubleJumped && !this.slamming) { this.doubleJumped = true; this.vy = 9.8; this.flipT = 0; return 'double'; }
+    // coyote time: a short grace window after running off an edge still counts as a ground jump
+    const coyote = this.coyoteT > 0 && !this.jumpedThisAir && (this.state === 'jump' || this.state === 'fall');
+    if (this.state === 'run' || this.state === 'stumble' || coyote) { this.state = 'jump'; this.vy = JUMP_V; this.stateT = 0; this.doubleJumped = false; this.slamming = false; this.jumpedThisAir = true; this.coyoteT = 0; return 'single'; }
+    if (this.state === 'jump' && !this.doubleJumped && !this.slamming) { this.doubleJumped = true; this.vy = 9.6; this.tuckT = 0; this.djT = 0.3; this.jumpedThisAir = true; return 'double'; }
     return false;
   }
   slam() { if (this.state !== 'jump' || this.slamming) return false; this.slamming = true; this.vy = Math.min(this.vy, -24); return true; }
-  launch(v = 12) { this.state = 'jump'; this.vy = v; this.stateT = 0; this.doubleJumped = false; this.slamming = false; this.launched = true; }
-  _land(gy) { this.y = gy; this.state = 'run'; this.stateT = 0; this.landed = true; if (this.slamming) { this.landedSlam = true; this.crouchT = 0.2; } this.slamming = false; this.doubleJumped = false; }
-  attack() { this.attackT = 0; }
-  startSwing(p1, p2, dur) { this.swing = { p0: new THREE.Vector3(this.x, this.y, this.z), p1, p2, dur, t: 0 }; this.state = 'swing'; this.stateT = 0; this.vy = 0; }
+  launch(v = 12) { this.state = 'jump'; this.vy = v; this.stateT = 0; this.doubleJumped = false; this.slamming = false; this.launched = true; this.jumpedThisAir = true; }
+  _land(gy) { this.y = gy; this.state = 'run'; this.stateT = 0; this.landed = true; this.landT = 0.22; this.jumpedThisAir = false; this.coyoteT = 0; if (this.slamming) { this.landedSlam = true; this.crouchT = 0.2; } this.slamming = false; this.doubleJumped = false; }
+  attack(style = 'fore') { this.attackT = 0; this.attackStyle = style; this.attackDur = style === 'spin' ? 0.46 : style === 'over' ? 0.4 : 0.32; }
+  startSwing(p1, p2, dur) { this.swing = { p0: new THREE.Vector3(this.x, this.y, this.z), p1, p2, dur, t: 0 }; this.state = 'swing'; this.stateT = 0; this.vy = 0; this.lane = 0; this.jumpedThisAir = true; }
   releaseSwing() {
     const sw = this.swing; if (!sw) return null; const t = sw.t;
     const vy = (2 * (1 - t) * (sw.p1.y - sw.p0.y) + 2 * t * (sw.p2.y - sw.p1.y)) / sw.dur;
@@ -130,23 +154,25 @@ export class Player {
     if (s === 'swing') {
       const sw = this.swing; sw.t = Math.min(1, sw.t + dt / sw.dur);
       const t = sw.t, it = 1 - t;
-      this.x = it * it * sw.p0.x + 2 * it * t * sw.p1.x + t * t * sw.p2.x;
+      this.x = damp(this.x, this.lane * LANE_W, 6, dt);
       this.y = it * it * sw.p0.y + 2 * it * t * sw.p1.y + t * t * sw.p2.y;
       this.z = it * it * sw.p0.z + 2 * it * t * sw.p1.z + t * t * sw.p2.z;
-      if (t >= 1) { this.state = 'run'; this.stateT = 0; this.y = 0; this.lane = Math.round(this.x / LANE_W); this.swing = null; this.landed = true; }
+      if (t >= 1) { if (sw.chain) { this.releaseSwing(); this.vy = 5; } else { this.state = 'run'; this.stateT = 0; this.y = sw.p2.y; this.lane = Math.round(this.x / LANE_W); this.swing = null; this.landed = true; } }
     } else if (s === 'dead') {
       if (this.deathKind === 'fall') { this.vy += GRAVITY * dt; this.y += this.vy * dt; this.z -= speed * 0.2 * dt; }
       else { this.vy += GRAVITY * dt; this.y = Math.max(0, this.y + this.vy * dt); this.z += speed * 0.25 * dt * Math.max(0, 1 - this.stateT * 2); }
     } else {
       this.z -= speed * dt;
-      const tx = this.lane * LANE_W; this.x = damp(this.x, tx, 14, dt);
+      const tx = this.lane * LANE_W; this.x = damp(this.x, tx, 19, dt);
       const W = this.world; const gy = W ? W.groundY(this.x, this.z, this.y) : 0; this.trackY = W ? W.heightAt(this.z) : 0;
-      if (s === 'fall') { this.vy += GRAVITY * dt; this.y += this.vy * dt; if (gy > -1e8 && this.vy <= 0 && this.y <= gy && this.y > gy - 1.5) this._land(gy); }
-      else if (s === 'jump') { this.vy += GRAVITY * dt; this.y += this.vy * dt; if (this.vy <= 0 && gy > -1e8 && this.y <= gy) this._land(gy); }
+      if (this.coyoteT > 0) this.coyoteT -= dt;
+      const g = GRAVITY * (this.vy < 0 ? 1.45 : 1);
+      if (s === 'fall') { this.vy += g * dt; this.y += this.vy * dt; if (gy > -1e8 && this.vy <= 0 && this.y <= gy && this.y > gy - 1.5) this._land(gy); }
+      else if (s === 'jump') { this.vy += g * dt; this.y += this.vy * dt; if (this.vy <= 0 && gy > -1e8 && this.y <= gy) this._land(gy); }
       else { // run / stumble: follow the ground, drop off ledges, fall into voids, auto-launch off ramps
         if (s === 'stumble' && this.stateT > 0.9) { this.state = 'run'; this.stateT = 0; }
-        if (gy < -1e8) { if (W && W.isLaunchVoid(this.z)) this.launch(12); else this.fall(); }
-        else if (this.y > gy + 0.45) { this.state = 'jump'; this.vy = 0; this.stateT = 0; this.doubleJumped = false; this.slamming = false; }
+        if (gy < -1e8) { if (W && W.isLaunchVoid(this.z)) this.launch(12); else { this.fall(); this.coyoteT = 0.13; this.jumpedThisAir = false; } }
+        else if (this.y > gy + 0.45) { this.state = 'jump'; this.vy = 0; this.stateT = 0; this.doubleJumped = false; this.slamming = false; this.coyoteT = 0.13; this.jumpedThisAir = false; }
         else this.y = gy;
       }
     }
@@ -169,11 +195,26 @@ export class Player {
     else if (s === 'jump') { const k = Math.min(1, this.stateT * 6); hipL = 0.9 * k; kneeL = -1.3 * k; hipR = -0.5 * k; kneeR = -0.7 * k; shL = -1.1 * k; elL = 0.7; shR = -2.8; bodyX = -0.22; }
     else if (s === 'swing') { const t = this.swing ? this.swing.t : 0; hipL = -0.5 + sin(time * 6) * 0.2; hipR = -0.2 + cos(time * 6) * 0.2; kneeL = -0.6; kneeR = -0.4; shL = -0.9 + sin(time * 4) * 0.2; elL = 0.6; shR = -3.05; elR = 0.1; armRz = 0.05; bodyX = -0.35 - sin(t * Math.PI) * 0.3; }
     else if (s === 'fall') { hipL = sin(time * 14) * 0.5; hipR = cos(time * 14) * 0.5; shL = -2.6; elL = 0.3; shR = -2.6; bodyX = 0.2; bodyZ = sin(time * 10) * 0.15; }
-    else if (s === 'dead') { const k = Math.min(1, this.stateT * 3); if (this.deathKind === 'fall') { rootX = this.stateT * 4; hipL = 0.5; hipR = -0.5; shL = -2.5; } else { rootX = -1.5 * k; hipL = 0.3; hipR = -0.3; shL = -1.2; shR = -1.5; elR = 0.2; bodyX = 0; } }
+    else if (s === 'dead') { const k = Math.min(1, this.stateT * 3) * (this.skinned ? 0 : 1); if (this.deathKind === 'fall') { rootX = this.stateT * 4; hipL = 0.5; hipR = -0.5; shL = -2.5; } else { rootX = -1.5 * k; hipL = 0.3; hipR = -0.3; shL = -1.2; shR = -1.5; elR = 0.2; bodyX = 0; } }
     if (s === 'jump' && this.slamming) { hipL = 1.1; hipR = 1.1; kneeL = -1.6; kneeR = -1.6; shL = -1.2; elL = 0.9; shR = -0.6; elR = 0.3; armRz = 0.2; bodyX = 0.25; }
-    if (this.flipT < 0.45) { this.flipT += dt; rootX = -Math.PI * 2 * Math.min(1, this.flipT / 0.45); hipL = 1.3; hipR = 1.0; kneeL = -1.8; kneeR = -1.6; shL = -2.2; }
+    if (this.tuckT < 0.5 && s === 'jump') { this.tuckT += dt; const k = Math.sin(Math.min(1, this.tuckT / 0.5) * Math.PI); hipL = lerp(hipL, 1.35, k); hipR = lerp(hipR, 1.15, k); kneeL = lerp(kneeL, -1.9, k); kneeR = lerp(kneeR, -1.8, k); shL = lerp(shL, -2.3, k); elL = lerp(elL, 0.4, k); bodyX = lerp(bodyX, 0.12, k); }
     if (this.crouchT > 0) { this.crouchT -= dt; const k = Math.sin(Math.min(1, this.crouchT / 0.2) * Math.PI); bodyY -= 0.25 * k; kneeL -= 0.6 * k; kneeR -= 0.6 * k; bodyX -= 0.3 * k; }
-    if (this.attackT < 0.35) { const a = this.attackT / 0.35; const k = a < 0.3 ? a / 0.3 : 1 - (a - 0.3) / 0.7; shR = lerp(shR, -1.0, k); elR = lerp(elR, 0.25, k); armRz = lerp(armRz, 0.1, k); bodyX -= 0.18 * k; }
+    let yaw = 0, spinYaw = null;
+    const ad = this.attackDur || 0.32;
+    if (this.attackT < ad) {
+      const a = this.attackT / ad; const k = a < 0.3 ? a / 0.3 : 1 - (a - 0.3) / 0.7; const st = this.attackStyle || 'fore';
+      switch (st) {
+        case 'fore': shR = lerp(shR, -1.15, k); elR = lerp(elR, 0.2, k); armRz = lerp(0.9, -0.5, a) * k + armRz * (1 - k); yaw = lerp(-0.35, 0.3, a) * k; bodyX -= 0.18 * k; break;
+        case 'back': shR = lerp(shR, -1.2, k); elR = lerp(elR, 0.5, k); armRz = lerp(-0.9, 0.8, a) * k + armRz * (1 - k); yaw = lerp(0.4, -0.35, a) * k; bodyX -= 0.15 * k; break;
+        case 'over': shR = lerp(-3.1, -0.7, Math.min(1, a * 1.6)); elR = lerp(elR, 0.15, k); armRz = lerp(armRz, 0.05, k); bodyX -= 0.45 * Math.sin(a * Math.PI); break;
+        case 'side-l': shR = lerp(shR, -1.4, k); elR = lerp(elR, 0.2, k); armRz = lerp(armRz, -1.1, k); yaw = 0.75 * k; break;
+        case 'side-r': shR = lerp(shR, -1.4, k); elR = lerp(elR, 0.2, k); armRz = lerp(armRz, 1.35, k); yaw = -0.75 * k; break;
+        case 'low': shR = lerp(shR, -0.6, k); elR = lerp(elR, 0.1, k); armRz = lerp(armRz, 0.4, k); bodyX -= 0.5 * k; kneeL -= 0.7 * k; kneeR -= 0.7 * k; bodyY -= 0.22 * k; break;
+        case 'spin': shR = lerp(shR, -1.55, Math.min(1, a * 4)); elR = 0.1; armRz = 1.3; shL = -1.4; spinYaw = -a * Math.PI * 2; bodyY -= 0.1; break;
+        case 'down': shR = lerp(shR, -0.25, k); elR = 0.1; armRz = lerp(armRz, 0.2, k); break;
+        case 'slam': shR = lerp(-3.0, -0.4, Math.min(1, a * 1.8)); elR = 0.2; armRz = 0.1; bodyX += 0.3 * k; break;
+      }
+    }
     const kA = 1 - Math.exp(-dt * 18);
     const L = (o, key, v) => { o[key] = lerp(o[key], v, kA); };
     L(this.legL.rotation, 'x', hipL); L(this.legR.rotation, 'x', hipR); L(this.legL.knee.rotation, 'x', kneeL); L(this.legR.knee.rotation, 'x', kneeR);
@@ -182,10 +223,90 @@ export class Player {
     L(b.rotation, 'x', bodyX); L(b.position, 'y', bodyY);
     this.head.rotation.x = headX; this.hat.rotation.x = hatX;
     const tx = this.lane * LANE_W; const lean = clamp((tx - this.x) * 0.5, -0.4, 0.4);
-    L(b.rotation, 'z', -lean + bodyZ); L(b.rotation, 'y', -lean * 0.6);
-    if (this.flipT < 0.45) this.root.rotation.x = rootX; else L(this.root.rotation, 'x', rootX);
+    L(b.rotation, 'z', -lean + bodyZ); if (spinYaw !== null) b.rotation.y = spinYaw; else L(b.rotation, 'y', -lean * 0.6 + yaw);
+    L(this.root.rotation, 'x', rootX);
+    if (this.skinned) this._animateSkinned(dt, speed, time);
     if (this.shieldMesh.visible) { this.shieldMesh.rotation.y += dt * 1.5; this.shieldMesh.rotation.x += dt * 0.7; const sc = 1 + Math.sin(time * 5) * 0.04; this.shieldMesh.scale.set(sc, sc, sc); }
     if (this.hurtT > 0) { this.hurtT -= dt; this.root.visible = Math.floor(this.hurtT * 20) % 2 === 0; } else this.root.visible = true;
   }
   handWorld(out) { return this.whipAnchor.getWorldPosition(out); }
+
+  // ---------- skinned hero (KayKit Ranger, CC0) ----------
+  _initSkinned(models) {
+    const hero = models.hero.scene; this.skin = hero; hero.rotation.y = Math.PI; // the rig faces +z, the runner faces -z
+    hero.traverse((o) => {
+      if (o.isMesh) { o.castShadow = true; o.receiveShadow = false; o.frustumCulled = false; if (/Cape|Quiver/.test(o.name)) o.visible = false; }
+      if (o.isMesh && o.material && o.material.map && !this._recolored) { this._recolored = true; o.material.map = this._atlas = recolorAtlas(o.material.map); o.material.roughness = 0.75; o.material.needsUpdate = true; }
+      else if (o.isMesh && this._recolored && o.material.map) { o.material.map = this._atlas || o.material.map; }
+    });
+    // normalise height to ~2.15 m
+    hero.updateMatrixWorld(true); const box = new THREE.Box3().setFromObject(hero); const h = box.max.y - box.min.y; const S = 2.15 / h; hero.scale.setScalar(S); hero.position.y = -box.min.y * S;
+    this.body.add(hero); this.proc.visible = false; this.skinned = true;
+    const bone = (n) => hero.getObjectByName(n) || hero.getObjectByName(n.replace(/\./g, '')) || hero.getObjectByName(n.replace(/\./g, '_'));
+    this.bones = { up: bone('upperarm.r'), low: bone('lowerarm.r'), hand: bone('hand.r'), slot: bone('handslot.r'), head: bone('head') };
+    // animations from the shared Rig_Medium files
+    this.mixer = new THREE.AnimationMixer(hero); this.actions = {};
+    const clips = [...(models.move ? models.move.animations : []), ...(models.general ? models.general.animations : [])];
+    const pickClip = (n) => clips.find(c => c.name === n);
+    const def = { run: 'Running_A', jumpStart: 'Jump_Start', air: 'Jump_Idle', land: 'Jump_Land', hit: 'Hit_A', death: 'Death_A', idle: 'Idle_A' };
+    for (const [k, n] of Object.entries(def)) { const c = pickClip(n); if (!c) continue; const a = this.mixer.clipAction(c); if (k !== 'run' && k !== 'air' && k !== 'idle') { a.setLoop(THREE.LoopOnce, 1); a.clampWhenFinished = true; } this.actions[k] = a; }
+    this.cur = null; this._play('run', 0);
+    // hat on the head bone, sized to the head
+    hero.updateMatrixWorld(true);
+    const headMesh = hero.getObjectByName('Ranger_Head'); const hb = new THREE.Box3().setFromObject(headMesh, true);
+    const hw = hb.max.x - hb.min.x, hh = hb.max.y - hb.min.y; const k = (hw / 0.68) * 1.02;
+    this.hat.removeFromParent(); this.bones.head.add(this.hat);
+    const hp = new THREE.Vector3((hb.min.x + hb.max.x) / 2, hb.max.y - hh * 0.3, (hb.min.z + hb.max.z) / 2); this.bones.head.worldToLocal(hp);
+    this.hat.position.copy(hp); const ws = new THREE.Vector3(); this.bones.head.getWorldScale(ws); this.hat.scale.setScalar(k / ws.x); this.hat.rotation.set(0, 0, 0);
+    // whip handle in the right hand slot
+    const sws = new THREE.Vector3(); this.bones.slot.getWorldScale(sws); const u = 1 / sws.x;
+    const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.045 * u, 0.058 * u, 0.36 * u, 12), new THREE.MeshStandardMaterial({ color: 0x5c3a1e, roughness: .5 })); handle.castShadow = true;
+    const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.064 * u, 0.064 * u, 0.05 * u, 12), new THREE.MeshStandardMaterial({ color: 0xe3b23c, metalness: .75, roughness: .25 })); cap.position.y = 0.13 * u; handle.add(cap);
+    this.bones.slot.add(handle); this.whipAnchor = new THREE.Object3D(); this.whipAnchor.position.set(0, 0.2 * u, 0); this.bones.slot.add(this.whipAnchor);
+    this._q0 = new THREE.Quaternion(); this._q1 = new THREE.Quaternion(); this._v0 = new THREE.Vector3(); this._v1 = new THREE.Vector3(); this._v2 = new THREE.Vector3();
+  }
+  _play(name, fade = 0.12) {
+    const a = this.actions[name]; if (!a || this.cur === name) return;
+    const prev = this.cur && this.actions[this.cur]; a.reset(); a.enabled = true; a.setEffectiveWeight(1); a.play();
+    if (prev && fade > 0) a.crossFadeFrom(prev, fade, false); else if (prev) prev.stop();
+    this.cur = name;
+  }
+  // point a bone (whose child sits along +Y) toward a world-space direction, blended by w
+  _aim(bone, childLocal, dirWorld, w) {
+    if (w <= 0) return;
+    bone.parent.getWorldQuaternion(this._q0).invert();
+    const d = this._v0.copy(dirWorld).applyQuaternion(this._q0).normalize();
+    const rest = this._v1.copy(childLocal).normalize();
+    this._q1.setFromUnitVectors(rest, d); bone.quaternion.slerp(this._q1, w); bone.updateMatrixWorld(true);
+  }
+  _animateSkinned(dt, speed, time) {
+    const s = this.state; if (this.landT > 0) this.landT -= dt; if (this.djT > 0) this.djT -= dt;
+    let want = 'run';
+    if (s === 'dead') want = this.deathKind === 'fall' ? 'air' : 'death';
+    else if (s === 'jump' || s === 'fall' || s === 'swing') want = (s === 'jump' && (this.stateT < 0.2 || this.djT > 0)) ? 'jumpStart' : 'air';
+    else if (s === 'stumble') want = 'hit';
+    else if (this.landT > 0) want = 'land';
+    if (this.djT > 0.27 && this.actions.jumpStart) { this.cur = null; }
+    this._play(want, want === 'death' ? 0.08 : 0.12);
+    if (this.actions.run) this.actions.run.timeScale = clamp(speed / 8.5, 0.55, 2.6);
+    this.mixer.update(dt);
+    // right arm: whip arm aimed by direction
+    this.root.updateMatrixWorld(true);
+    const B = this.bones; if (!B.up || !B.low) return;
+    const bq = this.body.getWorldQuaternion(this._q1.clone());
+    const toW = (x, y, z, out) => out.set(x, y, z).normalize().applyQuaternion(bq);
+    const upW = new THREE.Vector3(), loW = new THREE.Vector3(); let w = s === 'dead' ? 0 : 0.9;
+    toW(0.35, 0.93, 0.05, upW); toW(0.12, 1, -0.12, loW);
+    const ad = this.attackDur || 0.32;
+    if (this.attackT < ad && s !== 'dead') {
+      const a = this.attackT / ad; const e = a < 0.28 ? 0 : Math.min(1, (a - 0.28) / 0.45); const ee = 1 - Math.pow(1 - e, 3);
+      const P = ARM_STYLE[this.attackStyle] || ARM_STYLE.fore; const A = P[0], Bv = P[1];
+      const ux = A[0] + (Bv[0] - A[0]) * ee, uy = A[1] + (Bv[1] - A[1]) * ee, uz = A[2] + (Bv[2] - A[2]) * ee;
+      toW(ux, uy, uz, upW); loW.copy(upW); w = 1;
+    } else if (s === 'swing' && this.aimPoint) {
+      B.up.getWorldPosition(this._v2); upW.copy(this.aimPoint).sub(this._v2).normalize(); loW.copy(upW); w = 1;
+    }
+    this._aim(B.up, B.low.position, upW, w);
+    this._aim(B.low, B.hand.position, loW, w);
+  }
 }
