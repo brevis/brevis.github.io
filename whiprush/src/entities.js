@@ -90,8 +90,20 @@ function makeTotem() {
   return g;
 }
 
-const FACTORY = { totem: makeTotem, urchin: makeUrchin, golem: makeGolem, crates: makeCrates, pillar: makePillar, hook: makeHook, powerup: makePowerup };
-const POOL_SIZE = { totem: 8, urchin: 22, golem: 8, crates: 10, pillar: 8, hook: 4, powerup: 4 };
+function makeGate() {
+  const g = new THREE.Group();
+  const col = (x) => { const c = mesh(RB(1.1, 6.5, 1.1, 0.12), M.pedestal, x, 3.25, 0); g.add(c); g.add(mesh(RB(1.5, 0.4, 1.5, 0.08), M.pedestal, x, 6.6, 0)); g.add(mesh(RB(1.2, 0.2, 1.2, 0.05), M.gold, x, 4.6, 0)); };
+  col(-4.4); col(4.4);
+  g.add(mesh(RB(10.4, 0.7, 1.2, 0.12), M.pedestal, 0, 7.1, 0));
+  const sun = mesh(new THREE.TorusGeometry(0.9, 0.18, 12, 32), M.ring, 0, 8.3, 0); g.add(sun);
+  const gem = mesh(new THREE.OctahedronGeometry(0.4, 0), M.magnet, 0, 8.3, 0); g.add(gem); g.userData.gem = gem; g.userData.sun = sun;
+  for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2; const ray = mesh(new THREE.ConeGeometry(0.12, 0.6, 5), M.gold, Math.cos(a) * 1.35, 8.3 + Math.sin(a) * 1.35, 0); ray.rotation.z = a - Math.PI / 2; g.add(ray); }
+  const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture('rgba(255,250,220,0.9)', 'rgba(255,215,120,0.35)', 'rgba(255,190,80,0)'), color: 0xffe9a0, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0.8 })); glow.position.y = 8.3; glow.scale.set(6, 6, 1); g.add(glow);
+  return g;
+}
+
+const FACTORY = { gate: makeGate, totem: makeTotem, urchin: makeUrchin, golem: makeGolem, crates: makeCrates, pillar: makePillar, hook: makeHook, powerup: makePowerup };
+const POOL_SIZE = { gate: 2, totem: 8, urchin: 22, golem: 8, crates: 10, pillar: 8, hook: 4, powerup: 4 };
 
 export class Entities {
   constructor(scene) {
@@ -127,7 +139,7 @@ export class Entities {
     // coins: write matrices for visible ones
     let n = 0; const rot = time * 3.2;
     for (const c of this.coins) {
-      if (!c.alive) continue; if (c.z > playerZ + 3.5 || c.z < playerZ - 130) continue;
+      if (!c.alive) continue; if (c.z > playerZ + 1.5 || c.z < playerZ - 130) continue;
       c.t += dt;
       const bob = c.fly ? 0 : Math.sin(time * 4 + c.x + c.z * .3) * 0.08;
       this._p.set(c.x, c.y + bob, c.z); this._e.set(0, rot + c.z * 0.4, 0); this._q.setFromEuler(this._e);
@@ -145,12 +157,14 @@ export class Entities {
           { const gs = 4.2 + Math.sin(time * 3 + e.z) * 0.5 + (ud.halo.visible ? 1.5 : 0); ud.glow.scale.set(gs, gs, 1); }
           if (ud.halo.visible) { const s = 1 + Math.sin(time * 10) * 0.12; ud.halo.scale.set(s, s, s); ud.halo.rotation.z = -time * 2; ud.ring.scale.set(1.15, 1.15, 1.15); } break;
         case 'powerup': ud.core.rotation.y = time * 2.5; ud.core.rotation.x = time * 1.3; ud.ring.rotation.z = time * 2; m.position.y = e.y + Math.sin(time * 3) * 0.2; break;
+        case 'gate': ud.gem.rotation.y = time * 2; ud.sun.rotation.z = time * 0.6; break;
         case 'totem': ud.head.rotation.y = time * 1.2; ud.head.position.y = 3.55 + Math.sin(time * 2 + e.z) * 0.1; break;
         case 'crates': break;
         case 'pillar': break;
       }
     }
   }
+  restyle(rockMat, grassMat) { for (const h of this.pools.hook) h.mesh.traverse(o => { if (o.isMesh) { if (o.material === M.rock) o.material = rockMat; else if (o.material === M.grass) o.material = grassMat; } }); }
   kill(e) { e.dying = 0.25; }
 }
 export const Materials = M;

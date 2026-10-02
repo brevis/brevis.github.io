@@ -24,6 +24,10 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #5f9ff3; fon
 .combo { position: absolute; left: 50%; top: 22%; transform: translateX(-50%); text-align: center; animation: pop .25s ease-out; }
 .combo #combo-val { display: block; font-size: 42px; font-weight: 900; color: var(--gold); -webkit-text-stroke: 2px #5a3a00; text-shadow: 0 4px 0 #5a3a00, 0 0 20px rgba(255,200,0,.5); line-height: 1; }
 .combo-label { font-size: 13px; letter-spacing: 3px; font-weight: 800; opacity: .9; }
+.rush-meter { position: absolute; right: 14px; top: calc(env(safe-area-inset-top, 0px) + 54px); display: flex; align-items: center; gap: 6px; }
+.rush-label { font-size: 11px; letter-spacing: 2px; font-weight: 900; text-shadow: 0 2px 0 rgba(0,0,0,.4); }
+.rush-bar { width: 90px; height: 10px; border-radius: 6px; background: rgba(20,30,60,.55); border: 2px solid rgba(255,255,255,.35); overflow: hidden; }
+.rush-bar i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #ffb52e, #ff5a3c); box-shadow: 0 0 8px rgba(255,150,40,.8); transition: width .2s; }
 .power { position: absolute; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 18px); transform: translateX(-50%); display: flex; gap: 8px; }
 .power .pw { background: rgba(20,30,60,.55); border: 2px solid rgba(255,255,255,.35); border-radius: 12px; padding: 4px 10px; font-weight: 900; font-size: 13px; display: flex; gap: 6px; align-items: center; }
 .power .bar { width: 60px; height: 6px; background: rgba(255,255,255,.25); border-radius: 3px; overflow: hidden; }

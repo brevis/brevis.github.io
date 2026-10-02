@@ -30,6 +30,7 @@ class Audio {
   hit() { if (!this.ctx) return; const t = this.ctx.currentTime; this._osc('sine', 160, 40, t, 0.25, 0.8); this._noise(t, 0.22, 0.6, 'lowpass', 1200, 200); }
   smash() { if (!this.ctx) return; const t = this.ctx.currentTime; this._noise(t, 0.35, 0.8, 'lowpass', 1800, 150, 0.5); this._osc('triangle', 220, 60, t, 0.3, 0.5); this._osc('square', 90, 40, t, 0.2, 0.3); }
   squish() { if (!this.ctx) return; const t = this.ctx.currentTime; this._osc('sawtooth', 500, 90, t, 0.18, 0.3); this._noise(t, 0.15, 0.4, 'bandpass', 900, 300); }
+  rush() { if (!this.ctx) return; const t = this.ctx.currentTime; [392, 523, 659, 784, 1046, 1318].forEach((f, i) => this._osc('square', f, f, t + i * 0.05, 0.35, 0.14)); this._noise(t, 0.6, 0.5, 'bandpass', 500, 4000, 0.5); this._osc('sine', 110, 220, t, 0.7, 0.3); }
   clank() { if (!this.ctx) return; const t = this.ctx.currentTime; this._osc('square', 1400, 500, t, 0.1, 0.18); this._osc('triangle', 2200, 900, t, 0.14, 0.12); this._noise(t, 0.08, 0.5, 'highpass', 4000, 7000); }
   wood() { if (!this.ctx) return; const t = this.ctx.currentTime; this._noise(t, 0.25, 0.7, 'bandpass', 1400, 500, 1.5); this._osc('triangle', 300, 120, t, 0.12, 0.3); }
   grab() { if (!this.ctx) return; const t = this.ctx.currentTime; this._osc('sine', 500, 1100, t, 0.18, 0.3); this._noise(t, 0.08, 0.5, 'highpass', 2500, 5000); }

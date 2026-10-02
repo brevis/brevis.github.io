@@ -14,11 +14,12 @@ export class UI {
     $('go-title').textContent = title || 'WIPEOUT!'; $('go-score').textContent = score; $('go-dist').textContent = `${distance}m`; $('go-coins').textContent = coins; $('go-best').textContent = best;
     $('go-newbest').classList.toggle('hidden', !newBest); this.gameover.classList.remove('hidden');
   }
-  setHUD({ score, distance, coins, level, combo }) {
+  setHUD({ score, distance, coins, level, combo, rush }) {
     if (score !== this._lastScore) { this.score.textContent = score; this._lastScore = score; }
     if (distance !== this._lastDist) { this.dist.textContent = `DISTANCE: ${distance}m`; this._lastDist = distance; }
     if (coins !== this._lastCoins) { this.coins.textContent = coins; this._lastCoins = coins; }
     if (level !== this._lastLevel) { this.level.textContent = `LEVEL ${level}`; this._lastLevel = level; }
+    const rushEl = document.getElementById('rush-fill'); if (rushEl) rushEl.style.width = `${Math.min(1, rush || 0) * 100}%`;
     if (combo !== this._lastCombo) {
       this._lastCombo = combo;
       if (combo >= 2) { this.comboVal.textContent = `x${combo}`; this.combo.classList.remove('hidden'); this.combo.style.animation = 'none'; void this.combo.offsetWidth; this.combo.style.animation = ''; }

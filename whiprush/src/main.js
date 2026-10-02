@@ -5,6 +5,8 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
+import { normalMapFromTexture } from './geo.js';
 import { Game } from './game.js';
 import { UI } from './ui.js';
 import { Input } from './input.js';
@@ -37,6 +39,15 @@ const fill = new THREE.DirectionalLight(0xb9c8ff, 0.7); fill.position.set(-8, 6,
 const rt = new THREE.WebGLRenderTarget(window.innerWidth, window.innerHeight, { type: THREE.HalfFloatType, samples: IS_MOBILE ? 2 : 4 });
 const composer = new EffectComposer(renderer, rt);
 composer.addPass(new RenderPass(scene, camera));
+let gtao = null;
+if (!IS_MOBILE) {
+  try {
+    gtao = new GTAOPass(scene, camera, window.innerWidth, window.innerHeight);
+    gtao.output = GTAOPass.OUTPUT.Default; gtao.blendIntensity = 0.7;
+    gtao.updateGtaoMaterial({ radius: 0.7, distanceExponent: 1, thickness: 1, distanceFallOff: 1, scale: 1.1, samples: 12, screenSpaceRadius: false });
+    composer.addPass(gtao);
+  } catch (e) { console.warn('GTAO unavailable', e); gtao = null; }
+}
 const bloom = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.45, 0.5, 0.92);
 composer.addPass(bloom);
 composer.addPass(new OutputPass());
@@ -59,7 +70,7 @@ const grade = new ShaderPass(GradeShader); composer.addPass(grade);
 
 function resize() {
   const w = window.innerWidth, h = window.innerHeight;
-  renderer.setSize(w, h); composer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix(); grade.uniforms.uAspect.value = w / h;
+  renderer.setSize(w, h); composer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix(); grade.uniforms.uAspect.value = w / h; if (gtao) gtao.setSize(w, h);
 }
 window.addEventListener('resize', resize);
 
@@ -70,10 +81,15 @@ const loader = new THREE.TextureLoader(manager);
 const tex = {};
 tex.stone = loader.load('assets/stone.jpg'); tex.stone.wrapS = tex.stone.wrapT = THREE.RepeatWrapping; tex.stone.colorSpace = THREE.SRGBColorSpace; tex.stone.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
 tex.backdrop = loader.load('assets/backdrop.jpg'); tex.backdrop.colorSpace = THREE.SRGBColorSpace;
+const rep = (url, repeat = 1) => { const t = loader.load(url); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.repeat.set(repeat, repeat); t.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy()); return t; };
+const cut = (url) => { const t = loader.load(url); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t; };
+tex.rock = rep('assets/rock.jpg'); tex.grass = rep('assets/grass.jpg'); tex.leather = rep('assets/leather.jpg', 2); tex.denim = rep('assets/denim.jpg', 2);
+tex.treePine = cut('assets/tree_pine.png'); tex.treeRound = cut('assets/tree_round.png'); tex.bush = cut('assets/bush.png'); tex.islandA = cut('assets/island_a.png'); tex.islandB = cut('assets/island_b.png');
 
 manager.onLoad = () => {
+  try { tex.stoneN = normalMapFromTexture(tex.stone, 2.2, 512); } catch (e) { console.warn('normal map failed', e); }
   const game = new Game({ scene, camera, tex, ui, sun });
-  window.__game = game; window.__render = () => { grade.uniforms.uBoost.value = Math.max(0, (game.boost - 1) * 2.2); composer.render(); };
+  window.__game = game; window.__composer = composer; window.__gtao = gtao; window.__render = () => { grade.uniforms.uBoost.value = Math.max(0, (game.boost - 1) * 1.8) + (game.rushT > 0 ? 0.3 : 0); composer.render(); };
   const input = new Input(document.body);
   input.on('left', () => game.onLeft()).on('right', () => game.onRight()).on('jump', () => game.onJump()).on('whip', () => game.onWhip());
   input.on('any', () => audio.init());
@@ -96,7 +112,7 @@ manager.onLoad = () => {
     requestAnimationFrame(loop);
     let dt = Math.min(clock.getDelta(), 0.05);
     if (!game.paused) game.update(dt);
-    grade.uniforms.uBoost.value = Math.max(0, (game.boost - 1) * 1.8);
+    grade.uniforms.uBoost.value = Math.max(0, (game.boost - 1) * 1.8) + (game.rushT > 0 ? 0.3 : 0);
     composer.render();
   }
   loop();

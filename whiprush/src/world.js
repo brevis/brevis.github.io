@@ -1,18 +1,20 @@
 import * as THREE from 'three';
-import { CHUNK_LEN, BRIDGE_W, GAP_LEN, HOOK_Y, HOOK_AHEAD, LANE_W, rand, randi, pick } from './config.js';
+import { CHUNK_LEN, BRIDGE_W, GAP_LEN, HOOK_Y, HOOK_AHEAD, LANE_W, LEVEL_DIST, rand, randi, pick } from './config.js';
 import { Entities } from './entities.js';
-import { rockColumn, rockBlob, islandBottom, grassCap, treeGeometry, trunkGeometry, glowTexture, cloudTexture, withHeightGradient } from './geo.js';
+import { rockColumn, rockBlob, islandBottom, grassCap, glowTexture, cloudTexture, withHeightGradient, triplanar, perFaceColors, crossBillboardGeometry } from './geo.js';
 
 const NUM_CHUNKS = 8;
-const PER = { near: 12, far: 8, trees: 10, bushes: 8, crystals: 6, rocks: 5, clouds: 6 };
+const PER = { near: 12, far: 8, trees: 10, bushes: 8, crystals: 6, rocks: 5, clouds: 6, islands: 2 };
+const ROCK_HSL = { h: 0.735, s: 0.56, l: 0.5, hVar: 0.02, sVar: 0.08, lVar: 0.12 };
+const GRASS_HSL = { h: 0.26, s: 0.62, l: 0.55, hVar: 0.015, sVar: 0.06, lVar: 0.07 };
 const std = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, roughness: .9, metalness: 0, flatShading: true, ...extra });
 
 function floorGeometry(w, len, h = 1.4) {
   const g = new THREE.BoxGeometry(w, h, len);
   const uv = g.attributes.uv; const k = 2.1;
-  for (let i = 0; i < 8; i++) uv.setXY(i, uv.getX(i) * (len / k), uv.getY(i) * (h / k));       // ±x sides
-  for (let i = 8; i < 12; i++) uv.setXY(i, uv.getX(i) * (w / k), uv.getY(i) * (len / k));      // top
-  for (let i = 16; i < 24; i++) uv.setXY(i, uv.getX(i) * (w / k), uv.getY(i) * (h / k));      // ±z ends
+  for (let i = 0; i < 8; i++) uv.setXY(i, uv.getX(i) * (len / k), uv.getY(i) * (h / k));
+  for (let i = 8; i < 12; i++) uv.setXY(i, uv.getX(i) * (w / k), uv.getY(i) * (len / k));
+  for (let i = 16; i < 24; i++) uv.setXY(i, uv.getX(i) * (w / k), uv.getY(i) * (h / k));
   return g;
 }
 
@@ -20,14 +22,21 @@ export class World {
   constructor(scene, tex) {
     this.scene = scene; this.tex = tex; this.ents = new Entities(scene);
     this.chunks = []; this.nextZ = 0; this.level = 1; this.spawnCount = 0;
-    this.stoneTop = new THREE.MeshStandardMaterial({ map: tex.stone, roughness: .95, metalness: 0 });
-    this.stoneEdge = std(0x6f685e);
-    this.railMat = std(0xa89f90); this.colMat = std(0xb3a896); this.goldMat = new THREE.MeshStandardMaterial({ color: 0xf2b532, emissive: 0xc77d00, emissiveIntensity: .35, roughness: .3, metalness: .85 });
-    this.rockMat = withHeightGradient(std(0x8a6fd6), { low: [0.42, 0.36, 0.95], high: [1.2, 1.12, 1.05], yMin: -36, yMax: 10 });
-    this.rockFarMat = withHeightGradient(std(0x9d86e0), { low: [0.6, 0.55, 1.0], high: [1.15, 1.1, 1.05], yMin: -30, yMax: 20 });
-    this.grassMat = std(0x7fcf55); this.treeMat = std(0x3f9a46); this.trunkMat = std(0x6b4a2e); this.bushMat = std(0x63b84a);
+    // materials
+    this.stoneTop = new THREE.MeshStandardMaterial({ map: tex.stone, normalMap: tex.stoneN || null, normalScale: new THREE.Vector2(0.75, 0.75), roughness: .95, metalness: 0 });
+    this.stoneEdge = std(0x7a7267);
+    this.railMat = std(0xaba291); this.colMat = std(0xb8ad9c); this.goldMat = new THREE.MeshStandardMaterial({ color: 0xf2b532, emissive: 0xc77d00, emissiveIntensity: .35, roughness: .3, metalness: .85 });
+    const mkRock = (vertexColors, grad, tri) => { const m = new THREE.MeshStandardMaterial({ map: tex.rock, color: 0xffffff, roughness: .92, metalness: 0, flatShading: true, vertexColors }); triplanar(m, tri); withHeightGradient(m, grad); return m; };
+    this.rockMat = mkRock(true, { low: [0.48, 0.4, 0.95], high: [1.02, 0.98, 1.0], yMin: -36, yMax: 10 }, { scale: 0.045, strength: 0.45, brightness: 1.15 });
+    this.rockFarMat = mkRock(true, { low: [0.62, 0.56, 1.0], high: [1.1, 1.08, 1.02], yMin: -30, yMax: 24 }, { scale: 0.028, strength: 0.3, brightness: 1.25 });
+    this.rockPlainMat = mkRock(false, { low: [0.5, 0.42, 0.95], high: [1.12, 1.08, 1.02], yMin: -36, yMax: 10 }, { scale: 0.09, strength: 0.4, brightness: 1.25 });
+    this.rockPlainMat.color.setHSL(0.735, 0.5, 0.62);
+    const mkGrass = (vertexColors) => { const m = new THREE.MeshStandardMaterial({ map: tex.grass, color: 0xffffff, roughness: .95, metalness: 0, flatShading: true, vertexColors }); triplanar(m, { scale: 0.22, strength: 0.75, brightness: 1.15 }); return m; };
+    this.grassMat = mkGrass(true); this.grassPlainMat = mkGrass(false); this.grassPlainMat.color.setHSL(0.26, 0.62, 0.55);
+    const bb = (map) => new THREE.MeshStandardMaterial({ map, alphaTest: 0.5, side: THREE.DoubleSide, roughness: .95, metalness: 0, color: 0xffffff });
+    this.pineMat = bb(tex.treePine); this.roundMat = bb(tex.treeRound); this.bushMat = bb(tex.bush);
     this.crystalMat = new THREE.MeshPhysicalMaterial({ color: 0xe0b3ff, emissive: 0xb86cff, emissiveIntensity: 0.55, roughness: .15, metalness: 0, transparent: true, opacity: .92, flatShading: true });
-    this.boulderMat = withHeightGradient(std(0x6a4fae), { low: [0.5, 0.45, 0.95], high: [1.15, 1.1, 1.05], yMin: -30, yMax: 6 });
+    this.ents.restyle(this.rockPlainMat, this.grassPlainMat);
     this._buildEnvironment();
     for (let i = 0; i < NUM_CHUNKS; i++) this.chunks.push(this._makeChunk());
     this.reset();
@@ -39,35 +48,38 @@ export class World {
   }
   _buildEnvironment() {
     const N = NUM_CHUNKS;
-    this.geoNear = [rockColumn(7, 4, 0.22), rockColumn(8, 4, 0.18), rockColumn(6, 3, 0.25)];
-    this.geoFar = rockColumn(7, 3, 0.2);
+    this.geoNear = [perFaceColors(rockColumn(7, 4, 0.22), ROCK_HSL), perFaceColors(rockColumn(8, 4, 0.18), ROCK_HSL)];
+    this.geoFar = perFaceColors(rockColumn(7, 3, 0.2), { ...ROCK_HSL, l: 0.66, lVar: 0.08 });
     this.cliffA = this._inst(this.geoNear[0], this.rockMat, N * PER.near / 2);
     this.cliffB = this._inst(this.geoNear[1], this.rockMat, N * PER.near / 2);
     this.cliffFar = this._inst(this.geoFar, this.rockFarMat, N * PER.far);
-    this.caps = this._inst(grassCap(7), this.grassMat, N * (PER.near + PER.far));
-    this.trees = this._inst(treeGeometry(), this.treeMat, N * PER.trees, { shadow: true });
-    this.trunks = this._inst(trunkGeometry(), this.trunkMat, N * PER.trees);
-    this.bushes = this._inst(rockBlob(1, 0.2), this.bushMat, N * PER.bushes);
+    this.caps = this._inst(perFaceColors(grassCap(7), GRASS_HSL), this.grassMat, N * (PER.near + PER.far));
+    const bbGeo = crossBillboardGeometry(1, 1);
+    this.pines = this._inst(bbGeo, this.pineMat, N * PER.trees, { shadow: true });
+    this.rounds = this._inst(bbGeo, this.roundMat, N * PER.trees, { shadow: true });
+    this.bushes = this._inst(bbGeo, this.bushMat, N * PER.bushes);
     const cryGeo = new THREE.OctahedronGeometry(1, 0); cryGeo.scale(0.5, 1.5, 0.5);
     this.crystals = this._inst(cryGeo, this.crystalMat, N * PER.crystals);
-    this.rocks = this._inst(rockBlob(1, 0.3), this.boulderMat, N * PER.rocks);
+    this.rocks = this._inst(perFaceColors(rockBlob(1, 0.3), ROCK_HSL), this.rockMat, N * PER.rocks);
+    // painted floating islands far away (sprites)
+    this.islandSprites = [];
+    for (let i = 0; i < N * PER.islands; i++) { const map = i % 2 ? this.tex.islandB : this.tex.islandA; const s = new THREE.Sprite(new THREE.SpriteMaterial({ map, transparent: true, alphaTest: 0.25, depthWrite: true, color: 0xffffff })); this.scene.add(s); this.islandSprites.push(s); }
     // clouds (sprites)
     const cloudTex = cloudTexture(); this.clouds = [];
     for (let i = 0; i < N * PER.clouds; i++) { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: cloudTex, transparent: true, opacity: rand(.35, .6), depthWrite: false, color: 0xeef2ff })); s.userData.drift = rand(-.4, .4); this.scene.add(s); this.clouds.push(s); }
-    // mist floor far below
     const mist = new THREE.Mesh(new THREE.PlaneGeometry(600, 600), new THREE.MeshBasicMaterial({ color: 0xcdd7f5, transparent: true, opacity: .75 }));
     mist.rotation.x = -Math.PI / 2; mist.position.y = -44; this.scene.add(mist); this.mist = mist;
     // ambient sparkles
     this.sparkN = 180; const sp = new Float32Array(this.sparkN * 3); this.sparkOff = [];
     for (let i = 0; i < this.sparkN; i++) { this.sparkOff.push({ x: rand(-14, 14), y: rand(0.5, 11), z: rand(0, 90), s: rand(.4, 1.2), ph: rand(0, 6) }); }
     const sg = new THREE.BufferGeometry(); sg.setAttribute('position', new THREE.BufferAttribute(sp, 3));
-    this.sparkles = new THREE.Points(sg, new THREE.PointsMaterial({ map: glowTexture('rgba(255,255,255,1)', 'rgba(255,240,200,0.5)', 'rgba(255,220,150,0)'), size: 0.28, transparent: true, opacity: .85, blending: THREE.AdditiveBlending, depthWrite: false, color: 0xfff1c8, sizeAttenuation: true }));
+    this.sparkles = new THREE.Points(sg, new THREE.PointsMaterial({ map: glowTexture('rgba(255,255,255,1)', 'rgba(255,240,200,0.5)', 'rgba(255,220,150,0)'), size: 0.26, transparent: true, opacity: .8, blending: THREE.AdditiveBlending, depthWrite: false, color: 0xfff1c8, sizeAttenuation: true }));
     this.sparkles.frustumCulled = false; this.scene.add(this.sparkles);
     // backdrop painting
     const bd = new THREE.Mesh(new THREE.PlaneGeometry(420, 280), new THREE.MeshBasicMaterial({ map: this.tex.backdrop, fog: false, depthWrite: false }));
     bd.position.set(0, 46, -215); this.scene.add(bd); this.backdrop = bd;
     this._m = new THREE.Matrix4(); this._q = new THREE.Quaternion(); this._s = new THREE.Vector3(); this._p = new THREE.Vector3(); this._e = new THREE.Euler(); this._c = new THREE.Color();
-    this.islandGeo = { bottom: islandBottom(7), cap: grassCap(7) };
+    this.islandGeo = { bottom: perFaceColors(islandBottom(7), ROCK_HSL), cap: perFaceColors(grassCap(7), GRASS_HSL) };
   }
   _setInst(mesh, i, x, y, z, sx, sy, sz, ry = 0, rx = 0, rz = 0, color = null) {
     this._p.set(x, y, z); this._e.set(rx, ry, rz); this._q.setFromEuler(this._e); this._s.set(sx, sy, sz); this._m.compose(this._p, this._q, this._s); mesh.setMatrixAt(i, this._m);
@@ -99,17 +111,17 @@ export class World {
       g.add(c); cols.push(c);
     }
     const islands = [];
+    const bbGeo = crossBillboardGeometry(1, 1);
     for (let i = 0; i < 3; i++) {
       const isl = new THREE.Group();
-      const bottom = new THREE.Mesh(this.islandGeo.bottom, this.boulderMat); bottom.scale.set(1, 1.1, 1); bottom.castShadow = true; isl.add(bottom);
+      const bottom = new THREE.Mesh(this.islandGeo.bottom, this.rockMat); bottom.scale.set(1, 1.1, 1); bottom.castShadow = true; isl.add(bottom);
       const cap = new THREE.Mesh(this.islandGeo.cap, this.grassMat); cap.scale.set(1.04, 0.22, 1.04); cap.receiveShadow = true; isl.add(cap);
       const ruin = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.9, 0.22), this.colMat); ruin.position.set(0.35, 0.65, 0.1); ruin.castShadow = true; isl.add(ruin);
       const ruin2 = ruin.clone(); ruin2.position.set(-0.3, 0.5, -0.25); ruin2.scale.y = 0.6; isl.add(ruin2);
       const lintel = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.16, 0.26), this.colMat); lintel.position.set(0.02, 1.0, -0.08); lintel.rotation.y = 0.3; isl.add(lintel);
-      const tree = new THREE.Mesh(treeGeometry(), this.treeMat); tree.scale.set(0.45, 0.45, 0.45); tree.position.set(-0.45, 0.2, 0.4); tree.castShadow = true; isl.add(tree);
-      const trunk = new THREE.Mesh(trunkGeometry(), this.trunkMat); trunk.scale.copy(tree.scale); trunk.position.copy(tree.position); isl.add(trunk);
+      const tree = new THREE.Mesh(bbGeo, i % 2 ? this.roundMat : this.pineMat); tree.scale.set(0.9, 0.9, 0.9); tree.position.set(-0.45, 0.2, 0.4); tree.castShadow = true; isl.add(tree);
       const cry = new THREE.Mesh(new THREE.OctahedronGeometry(0.25, 0), this.crystalMat); cry.scale.set(1, 1.6, 1); cry.position.set(0.5, 0.4, -0.45); isl.add(cry);
-      isl.userData = { tree, trunk, ruin, ruin2, lintel, cry };
+      isl.userData = { tree, ruin, ruin2, lintel, cry };
       g.add(isl); islands.push(isl);
     }
     return { group: g, full, pre, post, edgeA, edgeB, rails, cols, islands, z0: 0, gap: false, gapStart: 0, gapEnd: 0, index: 0 };
@@ -122,9 +134,9 @@ export class World {
   _placeChunk(ch, i) {
     const z0 = this.nextZ; this.nextZ -= CHUNK_LEN; ch.z0 = z0; ch.index = this.spawnCount++;
     this.ents.releaseChunk(ch);
-    const L = this.level; const warm = ch.index < 2;
-    const gapAllowed = L >= 2 && !warm && ch.index > 2 && !this._lastGap;
-    ch.gap = gapAllowed && Math.random() < (L >= 5 ? 0.4 : 0.32);
+    const L = this.level; const warm = ch.index < 1; const intro = ch.index < 5;
+    const gapAllowed = !intro && (!this._lastGap || (L >= 3 && Math.random() < 0.45));
+    ch.gap = intro ? ch.index === 4 : (gapAllowed && Math.random() < (L >= 5 ? 0.42 : L >= 2 ? 0.34 : 0.26));
     this._lastGap = ch.gap;
     const preLen = (CHUNK_LEN - GAP_LEN) / 2; const center = z0 - CHUNK_LEN / 2;
     ch.full.visible = !ch.gap; ch.full.position.set(0, -0.7, center);
@@ -136,15 +148,17 @@ export class World {
     ch.islands.forEach((isl, k) => {
       const sx = k === 2 ? pick([-1, 1]) : (k ? 1 : -1); const vis = Math.random() < 0.75; isl.visible = vis; if (!vis) return;
       const s = rand(2.2, 5); isl.scale.set(s, s, s); isl.position.set(sx * rand(9.5, 17), rand(-7, 6), z0 - rand(3, 27)); isl.rotation.y = rand(0, 6);
-      const u = isl.userData; u.tree.visible = u.trunk.visible = Math.random() < 0.7; u.ruin.visible = u.ruin2.visible = u.lintel.visible = Math.random() < 0.5; u.cry.visible = Math.random() < 0.5;
+      const u = isl.userData; u.tree.visible = Math.random() < 0.75; u.tree.rotation.y = -isl.rotation.y; u.ruin.visible = u.ruin2.visible = u.lintel.visible = Math.random() < 0.5; u.cry.visible = Math.random() < 0.5;
     });
     this._placeEnvironment(ch, i);
-    if (!warm) this._populate(ch);
+    for (let k = 1; k < 60; k++) { const gz = -k * LEVEL_DIST; if (gz <= z0 && gz > z0 - CHUNK_LEN) { if (!ch.gap || gz > ch.gapStart || gz < ch.gapEnd) this.ents.spawn('gate', 0, 0, gz, ch); break; } }
+    if (intro) this._intro(ch); else if (!warm) this._populate(ch);
   }
   _placeEnvironment(ch, ci) {
     const z0 = ch.z0; const c = this._c;
-    let ti = ci * PER.trees, bi = ci * PER.bushes, capi = ci * (PER.near + PER.far);
+    let pi = ci * PER.trees, bi = ci * PER.bushes, capi = ci * (PER.near + PER.far);
     let treesLeft = PER.trees, bushesLeft = PER.bushes;
+    const tree = (x, y, z, s) => { const pine = Math.random() < 0.6; c.setHSL(0, 0, rand(.9, 1.05)); this._setInst(pine ? this.pines : this.rounds, pi, x, y, z, s, s * (pine ? 1.15 : 1), s, rand(0, 6), 0, 0, c); this._hideInst(pine ? this.rounds : this.pines, pi); pi++; treesLeft--; };
     const cliffAt = (mesh, idx, far, k, n) => {
       const sx = k < n / 2 ? -1 : 1; const kk = k % (n / 2);
       const zz = z0 - kk * (CHUNK_LEN / (n / 2)) - rand(0, 3);
@@ -153,20 +167,19 @@ export class World {
       const w = far ? rand(8, 14) : (spire ? rand(1.6, 3.2) : rand(3.6, 7.5));
       const h = far ? rand(30, 60) : rand(16, 45);
       const top = far ? rand(5, 18) : (spire ? rand(3, 13) : rand(-3, 7));
-      c.setHSL(0.72 + rand(-.03, .03), rand(.45, .6), rand(.5, .62));
+      c.setHSL(0, 0, rand(.85, 1.08));
       this._setInst(mesh, idx, x, top, zz, w, h, w * rand(.75, 1.3), rand(0, 6), 0, 0, c);
-      // grass cap
-      const capVis = Math.random() < 0.8; if (capVis) this._setInst(this.caps, capi, x, top, zz, w * 1.02, 0.28 + w * 0.03, w * rand(.75, 1.3) * 1.02, 0, 0, 0, null); else this._hideInst(this.caps, capi); capi++;
+      const capVis = Math.random() < 0.8; if (capVis) { c.setHSL(0, 0, rand(.9, 1.1)); this._setInst(this.caps, capi, x, top, zz, w * 1.02, 0.28 + w * 0.03, w * rand(.75, 1.3) * 1.02, 0, 0, 0, c); } else this._hideInst(this.caps, capi); capi++;
       if (capVis && !far && !spire) {
-        const nT = Math.min(treesLeft, randi(0, 2)); for (let t = 0; t < nT; t++) { const s = rand(.8, 1.6); c.setHSL(0.33 + rand(-.03, .03), rand(.45, .6), rand(.3, .42)); this._setInst(this.trees, ti, x + rand(-w * .35, w * .35), top + 0.2, zz + rand(-w * .35, w * .35), s, s, s, rand(0, 6), 0, 0, c); this._setInst(this.trunks, ti, this._p.x, top + 0.1, this._p.z, s, s, s); ti++; treesLeft--; }
-        const nB = Math.min(bushesLeft, randi(0, 2)); for (let b = 0; b < nB; b++) { const s = rand(.5, 1.1); c.setHSL(0.3 + rand(-.03, .03), rand(.5, .65), rand(.38, .48)); this._setInst(this.bushes, bi, x + rand(-w * .4, w * .4), top + 0.15, zz + rand(-w * .4, w * .4), s, s * .7, s, rand(0, 6), 0, 0, c); bi++; bushesLeft--; }
+        const nT = Math.min(treesLeft, randi(0, 2)); for (let t = 0; t < nT; t++) tree(x + rand(-w * .35, w * .35), top + 0.15, zz + rand(-w * .35, w * .35), rand(2.2, 4.2));
+        const nB = Math.min(bushesLeft, randi(0, 2)); for (let b = 0; b < nB; b++) { const s = rand(1.0, 1.8); c.setHSL(0, 0, rand(.9, 1.05)); this._setInst(this.bushes, bi, x + rand(-w * .4, w * .4), top + 0.1, zz + rand(-w * .4, w * .4), s, s, s, rand(0, 6), 0, 0, c); bi++; bushesLeft--; }
       }
-      if (far && capVis && treesLeft > 0 && Math.random() < 0.6) { const s = rand(1.6, 2.6); c.setHSL(0.33, .5, .36); this._setInst(this.trees, ti, x + rand(-w * .3, w * .3), top + 0.2, zz + rand(-w * .3, w * .3), s, s, s, 0, 0, 0, c); this._setInst(this.trunks, ti, this._p.x, top, this._p.z, s, s, s); ti++; treesLeft--; }
+      if (far && capVis && treesLeft > 0 && Math.random() < 0.7) tree(x + rand(-w * .3, w * .3), top + 0.2, zz + rand(-w * .3, w * .3), rand(5, 8));
     };
     const half = PER.near / 2;
     for (let k = 0; k < PER.near; k++) { const mesh = k % 2 ? this.cliffB : this.cliffA; const idx = ci * half + Math.floor(k / 2); cliffAt(mesh, idx, false, k, PER.near); }
     for (let k = 0; k < PER.far; k++) cliffAt(this.cliffFar, ci * PER.far + k, true, k, PER.far);
-    while (treesLeft-- > 0) { this._hideInst(this.trees, ti); this._hideInst(this.trunks, ti); ti++; }
+    while (treesLeft-- > 0) { this._hideInst(this.pines, pi); this._hideInst(this.rounds, pi); pi++; }
     while (bushesLeft-- > 0) { this._hideInst(this.bushes, bi); bi++; }
     for (let k = 0; k < PER.crystals; k++) {
       const sx = k % 2 ? 1 : -1; const vis = Math.random() < 0.8; const s = vis ? rand(1, 3.2) : 0.001;
@@ -174,16 +187,29 @@ export class World {
     }
     for (let k = 0; k < PER.rocks; k++) {
       const sx = k % 2 ? 1 : -1; const vis = Math.random() < 0.65; const s = vis ? rand(0.8, 2.4) : 0.001;
-      c.setHSL(0.72, .45, rand(.45, .6));
+      c.setHSL(0, 0, rand(.85, 1.05));
       this._setInst(this.rocks, ci * PER.rocks + k, sx * rand(6, 11.5), rand(-14, 2), z0 - rand(0, CHUNK_LEN), s, s * 0.75, s, rand(0, 6), rand(0, 6), 0, c);
+    }
+    for (let k = 0; k < PER.islands; k++) {
+      const s = this.islandSprites[ci * PER.islands + k]; const sx = k ? 1 : -1; const vis = Math.random() < 0.8; s.visible = vis; if (!vis) continue;
+      const sc = rand(16, 34); s.position.set(sx * rand(26, 62), rand(10, 36), z0 - rand(0, CHUNK_LEN)); s.scale.set(sc, sc, 1);
     }
     for (let k = 0; k < PER.clouds; k++) {
       const s = this.clouds[ci * PER.clouds + k]; const sc = rand(22, 48);
       s.position.set(rand(-30, 30), rand(-30, -8), z0 - rand(0, CHUNK_LEN)); s.scale.set(sc, sc * 0.5, 1); s.material.opacity = rand(.5, .85);
     }
-    for (const m of [this.cliffA, this.cliffB, this.cliffFar, this.caps, this.trees, this.trunks, this.bushes, this.crystals, this.rocks]) { m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; }
+    for (const m of [this.cliffA, this.cliffB, this.cliffFar, this.caps, this.pines, this.rounds, this.bushes, this.crystals, this.rocks]) { m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; }
   }
 
+  _intro(ch) {
+    this._cur = ch; const E = this.ents; const z0 = ch.z0;
+    switch (ch.index) {
+      case 1: this._coinLine(0, z0 - 8, 7); break;
+      case 2: E.spawn('crates', 0, 0, z0 - 14, ch, { n: 4 }); this._coinLine(-1, z0 - 10, 4); this._coinLine(1, z0 - 10, 4); break;
+      case 3: E.spawn('urchin', 0, 0.6, z0 - 10, ch); this._coinArc(0, z0 - 10, 5, 6, 2.3); E.spawn('urchin', 1 * LANE_W, 0.6, z0 - 22, ch); this._coinLine(-1, z0 - 18, 4); break;
+      case 4: { const hz = z0 - CHUNK_LEN / 2; E.spawn('hook', 0, 0, hz, ch, { zOffset: -HOOK_AHEAD }); for (let i = 0; i < 9; i++) { const t = i / 8; this.ents.spawnCoin(0, 0.9 + Math.sin(t * Math.PI) * 3.4, hz + 10 - t * 20, ch); } for (let i = 0; i < 4; i++) this.ents.spawnCoin(0, 3.2 - i * 0.5, hz - 12 - i * 1.8, ch); this._prevWasGap = true; break; }
+    }
+  }
   // ---------- spawning ----------
   _coinLine(lane, z, n, step = 1.7, y = 0.9) { for (let i = 0; i < n; i++) this.ents.spawnCoin(lane * LANE_W, y, z - i * step, this._cur); }
   _coinArc(lane, zc, n = 5, span = 5, peak = 2.4) { for (let i = 0; i < n; i++) { const t = n === 1 ? 0.5 : i / (n - 1); const y = 0.9 + Math.sin(t * Math.PI) * (peak - 0.9); this.ents.spawnCoin(lane * LANE_W, y, zc + span / 2 - t * span, this._cur); } }
@@ -194,7 +220,9 @@ export class World {
       const hz = z0 - CHUNK_LEN / 2;
       E.spawn('hook', 0, 0, hz, ch, { zOffset: -HOOK_AHEAD });
       for (let i = 0; i < 9; i++) { const t = i / 8; const z = hz + 10 - t * 20; const y = 0.9 + Math.sin(t * Math.PI) * 3.4; this.ents.spawnCoin(0, y, z, ch); }
-      if (L >= 4 && Math.random() < 0.5) { const lane = pick([-1, 1]); E.spawn('urchin', lane * LANE_W, 0.6, z0 - 4, ch); }
+      if (L >= 4 && Math.random() < 0.5 && !this._prevWasGap) { const lane = pick([-1, 1]); E.spawn('urchin', lane * LANE_W, 0.6, z0 - 4, ch); }
+      // perfect-release reward: high coins past the landing, reachable only when released well
+      for (let i = 0; i < 4; i++) this.ents.spawnCoin(0, 3.2 - i * 0.5, hz - 12 - i * 1.8, ch);
       this._prevWasGap = true;
       return;
     }
@@ -203,12 +231,11 @@ export class World {
     const density = Math.min(slots.length, L <= 1 ? 1 : L <= 3 ? 2 : 3);
     const picks = slots.map((z, i) => ({ z, i })).sort(() => Math.random() - 0.5).slice(0, density).sort((a, b) => b.z - a.z);
     for (const { z } of picks) {
-      const choices = ['coins', 'coins', 'urchin'];
-      if (L >= 2) choices.push('urchin2', 'coinsAll');
-      if (L >= 3) choices.push('crates', 'pillar', 'urchinFloat', 'crates', 'totem');
-      if (L >= 4) choices.push('golem', 'pillarLong', 'golem');
-      if (L >= 5) choices.push('golem2', 'mix', 'totemUrchin', 'totem');
-      if (L >= 7) choices.push('golem2', 'wall', 'totemPair');
+      const choices = ['coins', 'urchin', 'crates', 'pillar', 'urchin'];
+      if (L >= 2) choices.push('urchin2', 'coinsAll', 'urchinFloat', 'crates');
+      if (L >= 3) choices.push('golem', 'totem', 'pillarLong', 'golem');
+      if (L >= 4) choices.push('golem2', 'mix', 'totemUrchin', 'totem');
+      if (L >= 6) choices.push('wall', 'totemPair', 'golem2');
       const kind = pick(choices);
       const lane = pick(this._lanes());
       const other = (l) => pick(this._lanes().filter(x => x !== l));
@@ -230,7 +257,7 @@ export class World {
         case 'wall': { E.spawn('golem', -LANE_W, 0, z, ch); E.spawn('urchin', 0, 0.6, z, ch); E.spawn('golem', LANE_W, 0, z, ch); this._coinLine(0, z + 4, 3, 1.5); break; }
       }
     }
-    if (Math.random() < 0.09 && L >= 2) { const lane = pick(this._lanes()); E.spawn('powerup', lane * LANE_W, 0, z0 - 11, ch, { kind: Math.random() < 0.5 ? 'magnet' : 'shield' }); }
+    if (Math.random() < 0.1) { const lane = pick(this._lanes()); E.spawn('powerup', lane * LANE_W, 0, z0 - 11, ch, { kind: Math.random() < 0.5 ? 'magnet' : 'shield' }); }
   }
 
   update(dt, time, player) {

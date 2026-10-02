@@ -6,9 +6,11 @@ export const HOOK_Y = 10;
 export const HOOK_AHEAD = 5; // ring is drawn this far ahead of the swing anchor
 export const GRAVITY = -30;
 export const JUMP_V = 10.2;
-export const BASE_SPEED = 12;
-export const MAX_SPEED = 23;
-export const LEVEL_DIST = 300;
+export const BASE_SPEED = 13;
+export const MAX_SPEED = 24;
+export const LEVEL_DIST = 250;
+export const RUSH_COMBO = 5;
+export const RUSH_TIME = 7;
 export const IS_MOBILE = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && window.innerWidth < 900);
 
 export const rand = (a = 0, b = 1) => a + Math.random() * (b - a);
